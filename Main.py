@@ -38,7 +38,7 @@ def main():
     BATCH_PARAMS = (WAVELET_DEPTH, BATCH_SIZE, MAX_SONGS, MAX_SAMPLES_PER_SONG)
 
     ## batch the data for medleyDB
-    # preprocess_medleydb()
+    preprocess_medleydb()
 
     ## test that generate_pairs() works
     batched_training_data = batch_training_data(*BATCH_PARAMS)
