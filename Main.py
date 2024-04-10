@@ -4,6 +4,7 @@ import os
 import Utils.Batch
 import Utils.Batch.generate_examples
 import Utils.Batch.batch_data
+import tensorflow as tf
 
 MEDLEY_PATH = 'Datasets/MedleyDB/V2/'
 TRAIN_PATH = 'Datasets/TrainingData/'
@@ -15,7 +16,7 @@ def preprocess_medleydb():
     ## call clean_training_data() to clean the training data if something goes wrong
     # Utils.Batch.generate_examples.clean_training_data(TRAIN_PATH, 'vocals')
 
-def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2, max_samples_per_song: int = 10) -> tuple:
+def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2, max_samples_per_song: int = 10) -> tf.data.Dataset:
     '''
     params:
     level: int, level of wavelet decomposition
