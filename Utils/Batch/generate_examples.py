@@ -1,11 +1,6 @@
-import numpy as np
-import tensorflow as tf
 import librosa
 import os
 import soundfile as sf
-import numpy as np
-import pywt
-import cv2
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -201,7 +196,14 @@ def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =1
     '''
     folders = os.listdir(PATH_DB)
     for folder in folders:
-        add_full_audio_to_perms(folder, PATH_DB)
+
+        # add full audio to perms, might error if full audio already exists, in that case, just go to split_per_folder
+        try:
+            add_full_audio_to_perms(folder, PATH_DB)
+        except Exception as e:
+            print(f"Error adding full audio to perms for {folder}. {e}")
+
+        # split the audio into chunks
         split_per_folder(folder, PATH_DB, PATH_Train, stem_type, seconds)
 
 def clean_training_data(PATH_Train: str, stem_type: str, folder: str=None) -> None:

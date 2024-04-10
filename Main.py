@@ -1,7 +1,3 @@
-import Utils
-import os
-
-import Utils.Batch
 import Utils.Batch.generate_examples
 import Utils.Batch.batch_data
 import tensorflow as tf
