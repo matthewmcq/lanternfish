@@ -4,31 +4,43 @@ import soundfile as sf
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from Wavelets import WaveData, SR
+from Wavelets import SR
 
 def add_full_audio_to_perms(folder: str, PATH_DB: str) -> None:
     '''
     Adds the full audio file to the permutations of the stems in the folder.
 
     params:
-    folder: str, name of the folder (song) in the db
-    PATH_DB: str, path to the db
+    - folder: str, name of the folder (song) in the db
+    - PATH_DB: str, path to the db
+
+    return: None
     '''
+
+    # get the path to the folder and the song name
     song_name = folder
     song_path = PATH_DB + song_name
 
+    # check if the folder exists
     if not os.path.isdir(song_path):
         print(f"Folder {song_name} does not exist. Skipping.")
         return None
+    
+    # get the stems in the folder
     stems = os.listdir(song_path)
     stems = [stem for stem in stems if stem.endswith('_STEMS')]
+
+    # check if the folder has a stem folder
     assert len(stems) == 1, "More than one stem folder found."
+
+    # get the stem names and add them to the song name to create the folder name
     stems = stems[0]
     stems_path = song_path + '/' + stems
     stem_names = os.listdir(stems_path)
-    stem_names = [stem for stem in stem_names if stem.endswith('.wav')]
+    stem_names = [stem for stem in stem_names if stem.endswith('.wav')] # list of all stems in the folder that are .wav files
+
     for stem in stem_names:
-        song_name += f"_{stem.split('.')[0]}"
+        song_name += f"_{stem.split('.')[0]}" # remove the .wav extension
 
     ## copy the full audio to the folder
     full_audio = PATH_DB + folder + '/' + folder + '_MIX.wav'
@@ -44,20 +56,30 @@ def add_full_audio_to_perms(folder: str, PATH_DB: str) -> None:
         os.removedirs(PATH_DB + folder + '/' + song_name)
     os.makedirs(PATH_DB + folder + '/' + song_name)
 
-    
-
-
+    ## copy the full audio to the folder
     os.system(f"cp {full_audio} {PATH_DB + folder + '/' + song_name}")
 
     ## rename the full audio to the song name, if exists, delete:
     if os.path.isfile(PATH_DB + folder + '/' + song_name + '/' + song_name + '.wav'):
         os.system(f"rm {PATH_DB + folder + '/' + song_name + '/' + song_name + '.wav'}")
+
+    
     os.system(f"mv {PATH_DB + folder + '/' + song_name + '/' + folder + '_MIX.wav'} {PATH_DB + folder + '/' + song_name + '/' + song_name + '.wav'}")
 
 
 
 
-def split_audios(stem, duration=10):
+def split_audios(stem: str, duration=10) -> list:
+    '''
+    Splits the audio into chunks of duration seconds.
+
+    params:
+    - stem: str, path to the stem
+    - duration: int, duration of the audio chunks in seconds
+
+    return:
+    - chunks: list, list of audio chunks
+    '''
 
     #Load in stems
     stem_audio, sr = librosa.load(stem, mono=False, sr=SR)
@@ -82,21 +104,38 @@ def split_audios(stem, duration=10):
     return chunks
 
 
-def write_audio(chunks, stemname, destination):
+def write_audio(chunks: list, stemname: str, destination: str) -> None:
+    '''
+    Writes the audio chunks to the destination.
 
+    params:
+    chunks: list, list of audio chunks
+    stemname: str, name of the stem
+    destination: str, destination to write the audio chunks
+
+    return:
+    None
+    '''
+
+    # Write chunks to destination
     chunks_written = 0
     for i, chunk in enumerate(chunks):        
         sf.write(f'{destination}/{stemname}_{i}.wav', chunk, SR)
         chunks_written += 1
 
-    print(f"Written {chunks_written} chunks for {stemname}.")
+    # print(f"Written {chunks_written} chunks for {stemname}.")
 
 def song_has_stem(folder: str, stem_type: str, PATH_DB: str) -> bool:
     '''
+    Checks if the song has the stem type in the folder.
+
     params:
     folder: str, name of the folder (song) in the db
     stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
     PATH_DB: str, path to the db
+
+    return:
+    bool, True if the song has the stem type, False otherwise
     '''
     if not os.path.isdir(PATH_DB + folder):
         return False
@@ -112,12 +151,17 @@ def song_has_stem(folder: str, stem_type: str, PATH_DB: str) -> bool:
 
 def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =10) -> None:
     '''
+    Splits the audio in the folder into chunks of duration seconds.
+
     params:
     folder: str, name of the folder (song) in the db
     PATH_DB: str, path to the db
     PATH_Train: str, path to the training data
     stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
     seconds: int, number of seconds to split the audio into
+
+    return:
+    None
     '''
     # PATH_Train should be Datasets/TrainingData/
     # PATH_DB should be Datasets/DB/...
@@ -188,11 +232,16 @@ def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str,
 
 def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =10) -> None:
     '''
+    Generates the training data for a given stem type.
+
     params:
     PATH_DB: str, path to the db
     PATH_Train: str, path to the training data
     stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
     seconds: int, number of seconds to split the audio into
+
+    return:
+    None
     '''
     folders = os.listdir(PATH_DB)
     for folder in folders:
@@ -206,6 +255,7 @@ def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =1
         # split the audio into chunks
         split_per_folder(folder, PATH_DB, PATH_Train, stem_type, seconds)
 
+
 def clean_training_data(PATH_Train: str, stem_type: str, folder: str=None) -> None:
     '''
     Cleans the training data set for a given stem type, removing all files in the y_true and y_train folders.
@@ -214,6 +264,9 @@ def clean_training_data(PATH_Train: str, stem_type: str, folder: str=None) -> No
     PATH_Train: str, path to the training data
     stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
     folder: str, name of the folder (song) in the db (OPTIONAL, if None, clean all folders in the training data)
+
+    return:
+    None
     '''
     # get all folders in the training data
     folders = os.listdir(PATH_Train + '/' + stem_type)

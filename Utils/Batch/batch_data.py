@@ -11,10 +11,15 @@ import Wavelets
 
 def generate_pairs(path_to_song: str, stem_type: str, level: int =12) -> tuple:
     '''
+    Generate pairs of wavelet data for training and true data
+
     params:
-    path_to_song: str, path to the song folder
-    stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
-    level: int, level of wavelet decomposition
+    - path_to_song: str, path to the song folder
+    - stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
+    - level: int, level of wavelet decomposition
+
+    return: 
+    - tuple, pair of wavelet data for training and true data for the audio file
     '''
     
     # call Wavelets.makeWaveDict() to get the wavelet dictionary
@@ -33,12 +38,17 @@ def generate_pairs(path_to_song: str, stem_type: str, level: int =12) -> tuple:
 
 def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_song: str, level: int=12) -> tuple:
     '''
+    Generate the test set for the wavelet data
+
     params:
-    train_dict: dict, dictionary of wavelet data for training
-    true_dict: dict, dictionary of true wavelet data
-    stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
-    path_to_song: str, path to the song folder
-    level: int, level of wavelet decomposition
+    - train_dict: dict, dictionary of wavelet data for training
+    - true_dict: dict, dictionary of true wavelet data
+    - stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
+    - path_to_song: str, path to the song folder
+    - level: int, level of wavelet decomposition
+
+    return: 
+    - tuple, pair of wavelet data arrays for training and true data for the full song folder
     '''
 
     y_train = []
@@ -71,16 +81,20 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
 
     return y_train, y_true
 
-def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_size: int =8, max_songs: int =2, max_samples_per_song: int =10) -> tuple:
+def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_size: int =8, max_songs: int =2, max_samples_per_song: int =10) -> tf.data.Dataset:
     '''
+    Batch the wavelet data for training
+
     params:
-    path_to_training: str, path to the training data
-    stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
-    level: int, level of wavelet decomposition
-    batch_size: int, size of the batch
-    max_songs: int, maximum number of songs to use
-    max_samples_per_song: int, maximum number of samples per song
-    return: tuple, batch of training data
+    - path_to_training: str, path to the training data
+    - stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
+    - level: int, level of wavelet decomposition
+    - batch_size: int, size of the batch
+    - max_songs: int, maximum number of songs to use
+    - max_samples_per_song: int, maximum number of samples per song
+    
+    return: 
+    - tf.data.Dataset, batched wavelet data
     '''
     
 

@@ -27,8 +27,18 @@ class WaveData:
     tensor_coeffs = None
 
 
+def getWaveletTransform(data: dict, song: str, level: int=12) -> dict:
+    '''
+    Get the wavelet transform of the waveform
 
-def getWaveletTransform(data, song, level=12):
+    params:
+    - data: dict, dictionary of wavelet data
+    - song: str, song key
+    - level: int, level of wavelet decomposition
+
+    return: 
+    - data: dict, updated dictionary of wavelet data
+    '''
 
     # ensure the waveform is in the correct shape
     if data[song].waveform.shape[0] == 2:
@@ -65,7 +75,17 @@ def getWaveletTransform(data, song, level=12):
 
     return data
 
-def makeWaveDict(folder_name):
+def makeWaveDict(folder_name: str) -> dict:
+    '''
+    Make a dictionary of wavelet data
+
+    params:
+    - folder_name: str, name of the folder containing the waveforms
+
+    return: 
+    - data: dict, dictionary of wavelet data
+    '''
+
     data = {}
 
     # Get all the filenames in the folder
