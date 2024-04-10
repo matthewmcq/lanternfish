@@ -9,13 +9,30 @@ import tensorflow as tf
 MEDLEY_PATH = 'Datasets/MedleyDB/V2/'
 TRAIN_PATH = 'Datasets/TrainingData/'
 
-def preprocess_medleydb():
+## Set current stem type to process
+
+CURR_STEM_TYPE = 'vocals'
+
+## Set the parameters -- might want to move to Config.py later
+
+WAVELET_DEPTH = 4 # level of wavelet decomposition
+BATCH_SIZE = 4 # number of samples per batch
+MAX_SONGS = 2 # maximum number of songs to include in the batch
+MAX_SAMPLES_PER_SONG = 2 # maximum number of samples per song to include in the batch
+
+BATCH_PARAMS = (WAVELET_DEPTH, BATCH_SIZE, MAX_SONGS, MAX_SAMPLES_PER_SONG)
+
+def preprocess_medleydb(stem_type: str) -> None:
+    '''
+    params:
+    stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
+    '''
 
     ## call clean_training_data() first to clean the training data if something goes wrong
     # Utils.Batch.generate_examples.clean_training_data(TRAIN_PATH, 'vocals')
 
     ## call generate_examples() to generate the examples
-    Utils.Batch.generate_examples.generate_data(MEDLEY_PATH, TRAIN_PATH, 'vocals', 10) ## -- WORKS!
+    Utils.Batch.generate_examples.generate_data(MEDLEY_PATH, TRAIN_PATH, stem_type, 10) ## -- WORKS!
 
 
 def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2, max_samples_per_song: int = 10) -> tf.data.Dataset:
@@ -32,22 +49,12 @@ def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2
 
 def main():
 
-    ## set the parameters -- might want to move to Config.py later
-    WAVELET_DEPTH = 4 # level of wavelet decomposition
-    BATCH_SIZE = 4 # number of samples per batch
-    MAX_SONGS = 2 # maximum number of songs to include in the batch
-    MAX_SAMPLES_PER_SONG = 2 # maximum number of samples per song to include in the batch
-
-    BATCH_PARAMS = (WAVELET_DEPTH, BATCH_SIZE, MAX_SONGS, MAX_SAMPLES_PER_SONG)
-
     ## batch the data for medleyDB
-    preprocess_medleydb()
+    preprocess_medleydb(CURR_STEM_TYPE)
 
     ## test that generate_pairs() works
     batched_training_data = batch_training_data(*BATCH_PARAMS)
     
     
-    
-
 if __name__ == '__main__':
     main()
