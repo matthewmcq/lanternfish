@@ -6,6 +6,7 @@ import soundfile as sf
 import numpy as np
 import pywt
 import cv2
+import tqdm
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -46,7 +47,12 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
 
     y_train = []
     y_true = []
-    for key in train_dict.keys():
+
+    song_name = path_to_song.split('/')[-2]
+
+    for key in tqdm.tqdm(train_dict.keys(), desc=f"Generating Test Set, Computing DWT for {song_name}", total=len(train_dict), leave=False):
+
+        # get the true key
         train = train_dict[key]
         index = int(key.split("_")[-1][0])
         assert int(index) >= 0
@@ -54,11 +60,16 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
         true_key = f"{stem_type}_{index}.wav"
         true_key = path_to_song + "y_true/" + true_key
         
+        # get the wavelet transform for the training and true data
         Wavelets.getWaveletTransform(train_dict, key, level)
         Wavelets.getWaveletTransform(true_dict, true_key, level)
+
+        # get the wavelet coefficients
         true = true_dict[true_key]
         train_tensor = train.tensor_coeffs
         true_tensor = true.tensor_coeffs
+
+        # add to the list
         y_train.append(train_tensor)
         y_true.append(true_tensor)
 
@@ -88,7 +99,7 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
     # generate pairs for each song
     y_train = []
     y_true = []
-    for song in songs:
+    for song in tqdm.tqdm(songs, desc=f"Generating Wavelet Batch: (level = {level}, batch_size = {batch_size}, max_songs = {max_songs}, max_samples_per_song = {max_samples_per_song})", total=len(songs), leave=True):
         # generate pairs for each song
         path_to_song = path_to_training + stem_type + '/' + song 
         if path_to_song[-1] != '/':
@@ -118,8 +129,8 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
 
     y_train = np.concatenate(y_train)
     y_true = np.concatenate(y_true)
-    print(f"y_train shape: {y_train.shape}")
-    print(f"y_true shape: {y_train.shape}")
+    # print(f"y_train shape: {y_train.shape}")
+    # print(f"y_true shape: {y_train.shape}")
     # convert to tensors
     
     y_train = tf.convert_to_tensor(y_train)

@@ -28,13 +28,16 @@ class WaveData:
 
 
 def getWaveletTransform(data, song, level=12):
+
+    # ensure the waveform is in the correct shape
     if data[song].waveform.shape[0] == 2:
         data[song].waveform = np.transpose(data[song].waveform)
-    print(f"Left channel waveform: {data[song].waveform[:, 0]}")
+    # print(f"Left channel waveform: {data[song].waveform[:, 0]}")
+
     # Perform wavelet decomposition
     coeffs_left = pywt.wavedec(data[song].waveform[:, 0], 'db1', level=level)
     coeffs_right = pywt.wavedec(data[song].waveform[:, 1], 'db1', level=level)
-    print(f"Left coefficients shape: {[c.shape for c in coeffs_left]}")
+    # print(f"Left coefficients shape: {[c.shape for c in coeffs_left]}")
 
     # Find the maximum length among all coefficients
     max_len = max([c.shape[0] for c in coeffs_left + coeffs_right])
@@ -53,22 +56,33 @@ def getWaveletTransform(data, song, level=12):
 
     # Convert the stacked coefficients to a TensorFlow tensor
     tensor_coeffs = tf.convert_to_tensor(stacked_coeffs)
-    print(f"Tensor coefficients shape: {tensor_coeffs.shape}")
+    # print(f"Tensor coefficients shape: {tensor_coeffs.shape}")
 
+    # Update the data object
     data[song].dwt = coeffs_left
     data[song].tensor_coeffs = tensor_coeffs
-
 
     return data
 
 def makeWaveDict(folder_name):
     data = {}
+
+    # Get all the filenames in the folder
     filenames = os.listdir(folder_name)
     filenames = [folder_name + filename for filename in filenames if filename.endswith('.wav')]
-    for filename in filenames:
-        print(f"Loading {filename}")
+
+    song_name = folder_name.split('/')[-2]
+
+    for filename in tqdm.tqdm(filenames, desc=f'Loading waveforms for {song_name}', total=len(filenames), leave=False):
+        # print(f"Loading {filename}")
+
+        # Load the waveform
         waveform, _ =librosa.load(filename, sr=SR, mono=False)
-        print(f"Waveform shape: {waveform.shape}")
+        # print(f"Waveform shape: {waveform.shape}")
+
+        # Transpose to have time as first dimension
         np.transpose(waveform)
+
+        # Create a WaveData object
         data[filename] = WaveData(filename, waveform, None)
     return data
