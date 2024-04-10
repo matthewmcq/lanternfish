@@ -10,11 +10,13 @@ MEDLEY_PATH = 'Datasets/MedleyDB/V2/'
 TRAIN_PATH = 'Datasets/TrainingData/'
 
 def preprocess_medleydb():
+
+    ## call clean_training_data() first to clean the training data if something goes wrong
+    # Utils.Batch.generate_examples.clean_training_data(TRAIN_PATH, 'vocals')
+
     ## call generate_examples() to generate the examples
     Utils.Batch.generate_examples.generate_data(MEDLEY_PATH, TRAIN_PATH, 'vocals', 10) ## -- WORKS!
 
-    ## call clean_training_data() to clean the training data if something goes wrong
-    # Utils.Batch.generate_examples.clean_training_data(TRAIN_PATH, 'vocals')
 
 def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2, max_samples_per_song: int = 10) -> tf.data.Dataset:
     '''
