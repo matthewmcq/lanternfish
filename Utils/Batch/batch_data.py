@@ -6,8 +6,11 @@ import soundfile as sf
 import numpy as np
 import pywt
 import cv2
-from Wavelets import WaveData, SR
-import generate_examples as ge
+
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import Wavelets
+# import generate_examples as ge
 
 def generate_pairs(path_to_song: str, stem_type: str, level: int =12) -> tuple:
     '''
@@ -18,8 +21,8 @@ def generate_pairs(path_to_song: str, stem_type: str, level: int =12) -> tuple:
     '''
     
     # call Wavelets.makeWaveDict() to get the wavelet dictionary
-    train_dict = WaveData.makeWaveDict(path_to_song + '/y_train')
-    true_dict = WaveData.makeWaveDict(path_to_song + '/y_true')
+    train_dict = Wavelets.makeWaveDict(path_to_song + 'y_train/')
+    true_dict = Wavelets.makeWaveDict(path_to_song + 'y_true/')
 
     # call make_test_set() to get the test set
     y_train, y_true = make_test_set(train_dict, true_dict, stem_type, path_to_song, level)
@@ -48,11 +51,11 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
         index = int(key.split("_")[-1][0])
         assert int(index) >= 0
         assert index != ""
-        true_key = f"{stem_type}_{index}_pred.wav"
-        true_key = path_to_song + "/y_true/" + true_key
+        true_key = f"{stem_type}_{index}.wav"
+        true_key = path_to_song + "y_true/" + true_key
         
-        WaveData.getWaveletTransform(train_dict, key, level)
-        WaveData.getWaveletTransform(true_dict, true_key, level)
+        Wavelets.getWaveletTransform(train_dict, key, level)
+        Wavelets.getWaveletTransform(true_dict, true_key, level)
         true = true_dict[true_key]
         train_tensor = train.tensor_coeffs
         true_tensor = true.tensor_coeffs
@@ -61,7 +64,7 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
 
     return y_train, y_true
 
-def batch_data(path_to_training: str, stem_type: str, level: int =12, batch_size: int =8, max_songs: int =2, max_samples_per_song: int =10) -> tuple:
+def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_size: int =8, max_songs: int =2, max_samples_per_song: int =10) -> tuple:
     '''
     params:
     path_to_training: str, path to the training data
@@ -72,8 +75,7 @@ def batch_data(path_to_training: str, stem_type: str, level: int =12, batch_size
     max_samples_per_song: int, maximum number of samples per song
     return: tuple, batch of training data
     '''
-    if path_to_training[-1] != '/':
-        path_to_training += '/'
+    
 
     # find all songs in the training data
     songs = os.listdir(path_to_training + stem_type)
@@ -88,8 +90,20 @@ def batch_data(path_to_training: str, stem_type: str, level: int =12, batch_size
     y_true = []
     for song in songs:
         # generate pairs for each song
-        path_to_song = path_to_training + stem_type + '/' + song + '/'
+        path_to_song = path_to_training + stem_type + '/' + song 
+        if path_to_song[-1] != '/':
+            path_to_song += '/'
+
+        ## check if the song is a directory
+        if not os.path.isdir(path_to_song):
+            continue
+
+        ## check that song has y_train and y_true folders for the stem type
+        if not os.path.isdir(path_to_song + 'y_train/') or not os.path.isdir(path_to_song + 'y_true/'):
+            continue
+
         train, true = generate_pairs(path_to_song, stem_type, level)
+        
 
         # limit the number of samples per song
         if len(train) > max_samples_per_song:
@@ -102,19 +116,18 @@ def batch_data(path_to_training: str, stem_type: str, level: int =12, batch_size
         y_train.append(train)
         y_true.append(true)
 
+    y_train = np.concatenate(y_train)
+    y_true = np.concatenate(y_true)
+    print(f"y_train shape: {y_train.shape}")
+    print(f"y_true shape: {y_train.shape}")
     # convert to tensors
+    
     y_train = tf.convert_to_tensor(y_train)
     y_true = tf.convert_to_tensor(y_true)
 
-    # randomize the data making sure to keep the pairs together, and split into batches
-    indices = np.random.permutation(len(y_train))
-    y_train = y_train[indices]
-    y_true = y_true[indices]
+    dataset = tf.data.Dataset.from_tensor_slices((y_train, y_true))
 
+    # shuffle and batch the dataset
+    dataset = dataset.shuffle(buffer_size=len(y_train)).batch(batch_size, drop_remainder=True)
 
-    # make batches
-    batch = []
-    for i in range(0, len(y_train), batch_size):
-        batch.append((y_train[i:i+batch_size], y_true[i:i+batch_size]))
-
-    return batch
+    return dataset

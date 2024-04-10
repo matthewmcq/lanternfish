@@ -6,7 +6,61 @@ import soundfile as sf
 import numpy as np
 import pywt
 import cv2
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from Wavelets import WaveData, SR
+
+def add_full_audio_to_perms(folder: str, PATH_DB: str) -> None:
+    '''
+    Adds the full audio file to the permutations of the stems in the folder.
+
+    params:
+    folder: str, name of the folder (song) in the db
+    PATH_DB: str, path to the db
+    '''
+    song_name = folder
+    song_path = PATH_DB + song_name
+
+    if not os.path.isdir(song_path):
+        print(f"Folder {song_name} does not exist. Skipping.")
+        return None
+    stems = os.listdir(song_path)
+    stems = [stem for stem in stems if stem.endswith('_STEMS')]
+    assert len(stems) == 1, "More than one stem folder found."
+    stems = stems[0]
+    stems_path = song_path + '/' + stems
+    stem_names = os.listdir(stems_path)
+    stem_names = [stem for stem in stem_names if stem.endswith('.wav')]
+    for stem in stem_names:
+        song_name += f"_{stem.split('.')[0]}"
+
+    ## copy the full audio to the folder
+    full_audio = PATH_DB + folder + '/' + folder + '_MIX.wav'
+
+    # Reduce size of song name by eliminating ann "_SUM" and + "_INSTR" and then adding one of each of them back
+    song_name = song_name.replace("_SUM", "").replace("_INSTR", "")
+    song_name += "_INSTR"
+    song_name += "_SUM"
+
+    ## make the folder for the full audio
+    if os.path.isdir(PATH_DB + folder + '/' + song_name):
+        print(f"Folder {song_name} already exists. deleting")
+        os.removedirs(PATH_DB + folder + '/' + song_name)
+    os.makedirs(PATH_DB + folder + '/' + song_name)
+
+    
+
+
+    os.system(f"cp {full_audio} {PATH_DB + folder + '/' + song_name}")
+
+    ## rename the full audio to the song name, if exists, delete:
+    if os.path.isfile(PATH_DB + folder + '/' + song_name + '/' + song_name + '.wav'):
+        os.system(f"rm {PATH_DB + folder + '/' + song_name + '/' + song_name + '.wav'}")
+    os.system(f"mv {PATH_DB + folder + '/' + song_name + '/' + folder + '_MIX.wav'} {PATH_DB + folder + '/' + song_name + '/' + song_name + '.wav'}")
+
+
+
 
 def split_audios(stem, duration=10):
 
@@ -18,9 +72,9 @@ def split_audios(stem, duration=10):
 
     # get total number of samples and number of chunks
     n_samples = len(stem_audio)
-    print(n_samples)
+    # print(n_samples)
     n_chunks = n_samples // (sr * duration)
-    print(n_chunks)
+    # print(n_chunks)
     chunks = []
 
     # Split into chunks
@@ -35,8 +89,30 @@ def split_audios(stem, duration=10):
 
 def write_audio(chunks, stemname, destination):
 
+    chunks_written = 0
     for i, chunk in enumerate(chunks):        
         sf.write(f'{destination}/{stemname}_{i}.wav', chunk, SR)
+        chunks_written += 1
+
+    print(f"Written {chunks_written} chunks for {stemname}.")
+
+def song_has_stem(folder: str, stem_type: str, PATH_DB: str) -> bool:
+    '''
+    params:
+    folder: str, name of the folder (song) in the db
+    stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
+    PATH_DB: str, path to the db
+    '''
+    if not os.path.isdir(PATH_DB + folder):
+        return False
+
+    stem_folders = os.listdir(PATH_DB + folder)
+    desired_stem_dir = [folder + '/' + stem for stem in stem_folders if stem==f"{stem_type}_INSTR" or stem==f"{stem_type}_INSTR_SUM"]
+
+    if len(desired_stem_dir) == 0:
+        return False
+    else:
+        return True
 
 
 def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =10) -> None:
@@ -59,6 +135,11 @@ def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str,
     # if no folder for this stem type exists, create it
     if not os.path.isdir(PATH_Train + stem_type):
         os.makedirs(PATH_Train + stem_type)
+
+    # if song does not have stem type, skip
+    if not song_has_stem(folder, stem_type, PATH_DB):
+        print(f"Song {folder} does not have {stem_type} stem. Skipping.")
+        return None
 
     # if no folder for this specific song exists, create it
     if not os.path.isdir(PATH_Train + "/" + stem_type + "/" + folder):
@@ -95,16 +176,22 @@ def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str,
     
     for i, stem in enumerate(perm_folders):
         # find the perm stem path in original db
-        perm_path_from_db = PATH_DB + stem + f"/{stem_type}_INSTR_SUM.wav"
+        perm_path_from_db = PATH_DB + stem 
+
+        # sould only be one perm stem 
+        perm = os.listdir(perm_path_from_db)
+        assert len(perm) == 1, "More than one perm stem found."
+        perm_path_from_db = perm_path_from_db + '/' + perm[0]
+
         
         # split perm stem into chunks
         perm_split = split_audios(perm_path_from_db, seconds)
 
         ## write perm stem
-        write_audio(perm_split, stem_type, TRAIN_PATH)
+        write_audio(perm_split, f"{stem_type}_{i}", TRAIN_PATH)
 
 
-def split_all_folders(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =10) -> None:
+def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =10) -> None:
     '''
     params:
     PATH_DB: str, path to the db
@@ -114,6 +201,7 @@ def split_all_folders(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: in
     '''
     folders = os.listdir(PATH_DB)
     for folder in folders:
+        add_full_audio_to_perms(folder, PATH_DB)
         split_per_folder(folder, PATH_DB, PATH_Train, stem_type, seconds)
 
 def clean_training_data(PATH_Train: str, stem_type: str, folder: str=None) -> None:
