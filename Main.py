@@ -6,20 +6,20 @@ import Utils.Batch.generate_examples
 import Utils.Batch.batch_data
 import tensorflow as tf
 
+### DO NOT CHANGE ###
 MEDLEY_PATH = 'Datasets/MedleyDB/V2/'
 TRAIN_PATH = 'Datasets/TrainingData/'
 
-## Set current stem type to process
-
+## Set current stem type to process. Options are: 'vocals', 'drums', 'bass', 'midrange'
 CURR_STEM_TYPE = 'vocals'
 
 ## Set the parameters -- might want to move to Config.py later
-
 WAVELET_DEPTH = 4 # level of wavelet decomposition
 BATCH_SIZE = 4 # number of samples per batch
 MAX_SONGS = 2 # maximum number of songs to include in the batch
 MAX_SAMPLES_PER_SONG = 2 # maximum number of samples per song to include in the batch
 
+## Set the batch parameters, pass to batch_training_data()
 BATCH_PARAMS = (WAVELET_DEPTH, BATCH_SIZE, MAX_SONGS, MAX_SAMPLES_PER_SONG)
 
 def preprocess_medleydb(stem_type: str) -> None:
