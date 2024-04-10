@@ -162,3 +162,6 @@ cython_debug/
 # Test stem and metadata files
 metadata/
 stem/
+
+# old structure
+__old/
