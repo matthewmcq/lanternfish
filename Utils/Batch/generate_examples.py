@@ -115,3 +115,44 @@ def split_all_folders(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: in
     folders = os.listdir(PATH_DB)
     for folder in folders:
         split_per_folder(folder, PATH_DB, PATH_Train, stem_type, seconds)
+
+def clean_training_data(PATH_Train: str, stem_type: str, folder: str=None) -> None:
+    '''
+    Cleans the training data set for a given stem type, removing all files in the y_true and y_train folders.
+
+    params:
+    PATH_Train: str, path to the training data
+    stem_type: str, type of stem to split (e.g. vocals, drums, bass, midrange)
+    folder: str, name of the folder (song) in the db (OPTIONAL, if None, clean all folders in the training data)
+    '''
+    # get all folders in the training data
+    folders = os.listdir(PATH_Train + '/' + stem_type)
+    assert len(folders) > 0, "No folders found in the training data."
+
+    # if only one folder is specified, only clean that folder
+    if folder is not None:
+        folders = [folder]
+    
+    # iterate over all folders
+    for folder in folders:
+
+        # get the paths to the y_true and y_train folders
+        path_y_true = PATH_Train + '/' + stem_type + '/' + folder + '/y_true'
+        path_y_train = PATH_Train + '/' + stem_type + '/' + folder + '/y_train'
+
+        if not os.path.isdir(path_y_true):
+
+            print(f"Folder {folder} does not exist. Skipping.")
+            continue
+
+        else:
+
+            # get all files in the y_true and y_train folders
+            y_true_files = os.listdir(path_y_true)
+            y_train_files = os.listdir(path_y_train)
+
+            # remove all files in the y_true and y_train folders
+            for file in y_true_files:
+                os.remove(path_y_true + '/' + file)
+            for file in y_train_files:
+                os.remove(path_y_train + '/' + file)

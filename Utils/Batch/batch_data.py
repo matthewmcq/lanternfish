@@ -61,7 +61,7 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
 
     return y_train, y_true
 
-def batch_data(path_to_training: str, stem_type: str, level: int =12, batch_size: int= 8, max_songs: int = 2, max_samples_per_song: int = 10) -> tuple:
+def batch_data(path_to_training: str, stem_type: str, level: int =12, batch_size: int =8, max_songs: int =2, max_samples_per_song: int =10) -> tuple:
     '''
     params:
     path_to_training: str, path to the training data
