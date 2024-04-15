@@ -1,9 +1,12 @@
 import Utils.Batch.generate_examples
 import Utils.Batch.batch_data
 import tensorflow as tf
+import Models.wavelet_unet
+import Config as cfg
 
 ### DO NOT CHANGE ###
-MEDLEY_PATH = 'Datasets/MedleyDB/V2/'
+MEDLEY2_PATH = 'Datasets/MedleyDB/V2/'
+MEDLEY1_PATH = 'Datasets/MedleyDB/V1/'
 TRAIN_PATH = 'Datasets/TrainingData/'
 
 ## Set current stem type to process. Options are: 'vocals', 'drums', 'bass', 'midrange'
@@ -30,11 +33,12 @@ def preprocess_medleydb(stem_type: str, clean: bool =False) -> None:
     '''
 
     ## call clean_training_data() first to clean the training data if something goes wrong
-    if clean:
+    if clean: 
         Utils.Batch.generate_examples.clean_training_data(TRAIN_PATH, stem_type)
 
     ## call generate_examples() to generate the examples
-    Utils.Batch.generate_examples.generate_data(MEDLEY_PATH, TRAIN_PATH, stem_type, 10) ## -- WORKS!
+    Utils.Batch.generate_examples.generate_data(MEDLEY1_PATH, TRAIN_PATH, stem_type, 10) ## -- WORKS!
+    Utils.Batch.generate_examples.generate_data(MEDLEY2_PATH, TRAIN_PATH, stem_type, 10) ## -- WORKS!
 
 
 def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2, max_samples_per_song: int = 10) -> tf.data.Dataset:
@@ -53,14 +57,31 @@ def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2
     ## call batch_wavelets() to batch the wavelet data
     dataset = Utils.Batch.batch_data.batch_wavelets(TRAIN_PATH, 'vocals', level, batch_size, max_songs, max_samples_per_song)
     print(f"Dataset: {dataset.element_spec}")
+    return dataset
 
 def main():
 
     ## batch the data for medleyDB
-    preprocess_medleydb(CURR_STEM_TYPE)
+    # preprocess_medleydb(CURR_STEM_TYPE)
+
+    ## define the model
+    model = Models.wavelet_unet.WaveletUNet(cfg.cfg())
+
+    # model.build((BATCH_SIZE, 5, 220500, 2))
 
     ## test that generate_pairs() works
     batched_training_data = batch_training_data(*BATCH_PARAMS)
+    print(len(batched_training_data))
+
+    print(f"Batched training data: {batched_training_data.element_spec}")
+
+    batch_size = cfg.cfg()['batch_size']
+    epochs = cfg.cfg()['epochs']
+
+    ## train the model
+    model = Models.wavelet_unet.train(model, batched_training_data, epochs, batch_size)
+
+
     
     
 if __name__ == '__main__':
