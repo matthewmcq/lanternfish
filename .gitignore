@@ -165,3 +165,6 @@ stem/
 
 # old structure
 __old/
+
+# Datasets
+Datasets/
