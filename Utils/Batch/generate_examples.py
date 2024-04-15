@@ -82,8 +82,13 @@ def split_audios(stem: str, duration=10) -> list:
     '''
 
     #Load in stems
-    stem_audio, sr = librosa.load(stem, mono=False, sr=SR)
-
+    try:
+        stem_audio, sr = librosa.load(stem, mono=False, sr=SR)
+    except Exception as e:
+        print(f"Error loading stem {stem}. {e}")
+        print(f" song shape: {len(stem), len(stem[0])}")
+        return []
+        
     # Transpose to have time as first dimension
     stem_audio = stem_audio.T
 
