@@ -4,7 +4,7 @@ import numpy as np
 # stolen from Wave-U-Net model (for now)
 def cfg():
     # Base configuration
-    model_config = {'num_layers' : 12, # How many U-Net layers
+    model_config = {'num_layers' : 10, # How many U-Net layers
                     'filter_size' : 15, # For Wave-U-Net: Filter size of conv in downsampling block
                     'merge_filter_size' : 5, # For Wave-U-Net: Filter size of conv in upsampling block
                     'input_filter_size' : 15, # For Wave-U-Net: Filter size of first convolution in first downsampling block
@@ -16,7 +16,8 @@ def cfg():
                     'batch_size' : 1, # Batch size
                     'channels': 2,
                     'epochs': 10,
-
+                    'max_songs': 10,
+                    'max_samples_per_song': 20,
                     'num_init_filters': 2, # TODO: change this later
 
                     'expected_sr': 22050,  # Downsample all audio input to this sampling rate
