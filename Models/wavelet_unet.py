@@ -9,14 +9,14 @@ class WaveletUNet(tf.keras.Model):
     def __init__(self, model_config):
         super().__init__()
         self.num_coeffs = model_config['num_coeffs']
-        self.wavelet_depth = model_config['wavelet_depth']
+        self.wavelet_depth = model_config['wavelet_depth'] + 1
         self.batch_size = model_config['batch_size']
         self.channels = model_config['channels']
         self.num_layers = model_config['num_layers']
         self.num_init_filters = model_config['num_init_filters']
         self.filter_size = model_config['filter_size']
 
-        self.input_shape = (self.wavelet_depth+1, self.num_coeffs)
+        self.input_shape = (self.batch_size, self.num_coeffs, self.wavelet_depth)
 
     def build(self, input_shape):
         # Create downsampling blocks
@@ -39,18 +39,15 @@ class WaveletUNet(tf.keras.Model):
         self.last_crop = tf.keras.layers.Cropping1D(cropping=(956, 956), name='last_crop')
 
         # Final convolution layer
-        self.output_conv = tf.keras.layers.Conv1D(self.channels, 1, activation='tanh', name='output_conv')
+        self.output_conv = tf.keras.layers.Conv1D(self.wavelet_depth, 1, activation='tanh', name='output_conv')
         
         super().build(input_shape)
 
 
     def call(self, inputs):
-        current_layer = inputs[0]  # need [0] because of the way the data is batched... TODO: fix this and investigate...
+        
+        current_layer = inputs  # need [0] because of the way the data is batched... TODO: fix this and investigate...
 
-        print(f"Input shape: {current_layer.shape}")
-        # current_layer = tf.expand_dims(current_layer, axis=-1)
-        # current_layer = tf.transpose(current_layer, perm=[0, 3, 1, 2])
-        print(f"Expanded input shape: {current_layer.shape}")
         enc_outputs = list()
 
         # Downsampling path
@@ -83,13 +80,7 @@ class WaveletUNet(tf.keras.Model):
         current_layer = self.last_crop(current_layer)
 
         # Final convolution layer, sigmoid activation
-        print(f"Current layer shape: {current_layer.shape}")
         output = self.output_conv(current_layer)
-        print(f"Current layer shape: {current_layer.shape}")
-        # flatten the last dimension
-        output = tf.expand_dims(output, axis=0)
-        
-        print(f"Output shape: {output.shape}")
 
         return output
     

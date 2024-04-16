@@ -82,7 +82,7 @@ def main():
     model = Models.wavelet_unet.WaveletUNet(model_config)
 
     # define a dummy input to build the model
-    dummy_input = tf.random.normal(shape=(batch_size, WAVELET_DEPTH+1, model_config['num_coeffs'], model_config['channels']))
+    dummy_input = tf.random.normal(shape=(batch_size, model_config['num_coeffs'], WAVELET_DEPTH+1))
     
     # build the model
     model(dummy_input)

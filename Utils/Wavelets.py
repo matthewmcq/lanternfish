@@ -65,10 +65,13 @@ def getWaveletTransform(data: dict, song: str, level: int=12) -> dict:
     # Stack the stretched coefficients along the channel axis
     # stacked_coeffs = np.stack([stretched_coeffs_left, stretched_coeffs_right], axis=-1)
 
-    stacked_coeffs = np.stack(stretched_coeffs_left, axis=0)
-    stacked_coeffs = stacked_coeffs[..., np.newaxis]
+    # stacked_coeffs = np.stack(stretched_coeffs_left, axis=0)
+    # stacked_coeffs = stacked_coeffs[..., np.newaxis]
     # Convert the stacked coefficients to a TensorFlow tensor
-    tensor_coeffs = tf.convert_to_tensor(stacked_coeffs)
+
+    ## transpose
+    stretched_coeffs_left = np.transpose(stretched_coeffs_left)
+    tensor_coeffs = tf.convert_to_tensor(stretched_coeffs_left)
 
     ## expand channel dim to 1
     # tensor_coeffs = tf.expand_dims(tensor_coeffs, axis=-1)
