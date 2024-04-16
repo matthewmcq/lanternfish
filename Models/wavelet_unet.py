@@ -18,74 +18,59 @@ class WaveletUNet(tf.keras.Model):
 
         self.input_shape = (self.wavelet_depth+1, self.num_coeffs, self.channels)
 
-        # Create downsampling blocks TODO: Might make this a dict
-        self.downsampling_blocks = [
-            DownsamplingLayer(self.num_init_filters * (2 ** i), self.filter_size)
-            for i in range(self.num_layers)
-        ]
+    def build(self, input_shape):
+        # Create downsampling blocks
+        self.downsampling_blocks = {}
+        for i in range(self.num_layers):
+            block_name = f'ds{i+1}'
+            num_filters = self.num_init_filters * (2 ** i)
+            self.downsampling_blocks[block_name] = DownsamplingLayer(num_filters, self.filter_size, name=block_name)
 
         # Create upsampling blocks
-        self.upsampling_blocks = [
-            UpsamplingLayer(self.num_init_filters * (2 ** (self.num_layers - i - 1)), self.filter_size)
-            for i in range(self.num_layers)
-        ]
+        self.upsampling_blocks = {}
+        for i in range(self.num_layers):
+            block_name = f'us{i+1}'
+            num_filters = self.num_init_filters * (2 ** (self.num_layers - i - 1))
+            self.upsampling_blocks[block_name] = UpsamplingLayer(num_filters, self.filter_size, name=block_name)
 
-
-        ## TODO: (IMPORTANT) MAKE 342 A PARAMETER, @rayhan this is probably why there was so much effort that went into the padding
-        ## for the Wave-U-Net model
+        # Cropping layer
         self.last_crop = tf.keras.layers.Cropping1D((342, 342), name='last_crop')
-                                                    # ^^^^^^THESE SHOULD NOT BE HARD CODED!!! 
 
-        # Final convolution layer -- pretty sure tanh is the right activation function here bc wavelets can be negative
+        # Final convolution layer
         self.output_conv = tf.keras.layers.Conv1D(self.channels, 1, activation='tanh', name='output_conv')
+
+        super().build(input_shape)
 
 
     def call(self, inputs):
+        current_layer = inputs[0]  # need [0] because of the way the data is batched... TODO: fix this and investigate...
 
-        # right now inputs should be of shape (batch_size, num_coeffs, channels)
-        
-        current_layer = inputs[0] # need [0] because of the way the data is batched... TODO: fix this and investigate...
-
-        # store outputs for skip connections        
         enc_outputs = list()
 
         # Downsampling path
-        for block in self.downsampling_blocks:
-
-            # current downsampling block
+        for i in range(self.num_layers):
+            block_name = f'ds{i+1}'
+            block = self.downsampling_blocks[block_name]
             current_layer = block(current_layer)
-
-            # store output for skip connection
             enc_outputs.append(current_layer)
-
-            # desimate along coefficients
             current_layer = current_layer[:, ::2, :]
 
         # Upsampling path
-        for i, block in enumerate(self.upsampling_blocks):
-
-            # current upsampling block
+        for i in range(self.num_layers):
+            block_name = f'us{self.num_layers - i}'
+            block = self.upsampling_blocks[block_name]
             current_layer = block(current_layer)
 
-            # find associated skip connection
             skip_conn = enc_outputs[-i-1]
-
-            # pad skip connection if necessary, need desired shape
             desired_shape = skip_conn.shape
             
             if current_layer.shape[1] != desired_shape[1]:
-                ## pad smaller tensor with last value
                 pad = current_layer.shape[1] - desired_shape[1]
-
-                ## pad the skip connection -- we might think about LERP, but this should just end up getting fixed
-                ## when we switch to a learned upsampling layer
                 skip_conn = tf.pad(skip_conn, [[0, 0], [0, pad], [0, 0]], 'CONSTANT')
 
-            # concatenate skip connection
             current_layer = tf.keras.layers.Concatenate()([current_layer, skip_conn])
 
         # Crop off the last 342 samples from both sides
-        # currently goes from front and back, but we might want to just go from the back
         current_layer = self.last_crop(current_layer)
 
         # Final convolution layer, sigmoid activation
@@ -93,54 +78,49 @@ class WaveletUNet(tf.keras.Model):
         return output
     
 
-# TODO: Move to Train.py at some point -- maybe not rn for convenience, but definitely later
-def train(model, train_data, epochs=10, batch_size=1):
+### TODO: Figure out how to put these in Layers.py
+class DownsamplingLayer(tf.keras.layers.Layer):
 
-    # I feel like these could go in a config file or kwargs
-    optimizer = tf.keras.optimizers.Adam()
-    loss_fn = tf.keras.losses.MeanSquaredError()
-    metrics = [tf.keras.metrics.RootMeanSquaredError()]
-
-    # Compile the model
-    model.compile(optimizer=optimizer, loss=loss_fn, metrics=metrics)
-
-    # print(f"Training data {train_data}")
-
-    # batch the data
-    train_data = train_data.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-    
-    # print(f"Training data after batching: {train_data}")
-
-    # train the model
-    model.fit(train_data, epochs=epochs)
-
-    return model
-
-### TODO: Might want to put these in a separate file (e.g. Layers.py) 
-class DownsamplingLayer: ## TODO: add get_config if something fucks up when we get to loading (a la hw 5)
-
-    def __init__(self, num_filters, filter_size):
+    def __init__(self, num_filters, filter_size, **kwargs):
+        super().__init__(**kwargs)
         self.num_filters = num_filters
         self.filter_size = filter_size
 
-        self.conv = tf.keras.layers.Conv1D(self.num_filters, self.filter_size, activation='leaky_relu', padding='same',strides=1, name='downsampling_conv')
+    def build(self, input_shape):
+        self.conv = tf.keras.layers.Conv1D(
+            self.num_filters,
+            self.filter_size,
+            activation='leaky_relu',
+            padding='same',
+            strides=1,
+            name='downsampling_conv'
+        )
+        super().build(input_shape)
 
-    def __call__(self, inputs):
+    def call(self, inputs):
         x = self.conv(inputs)
         return x
+
+class UpsamplingLayer(tf.keras.layers.Layer):
     
-
-class UpsamplingLayer: ## TODO: add get_config if something fucks up when we get to loading (a la hw 5)
-
-    def __init__(self, num_filters, filter_size):
+    def __init__(self, num_filters, filter_size, **kwargs):
+        super().__init__(**kwargs)
         self.num_filters = num_filters
         self.filter_size = filter_size
 
-        self.conv = tf.keras.layers.Conv1D(self.num_filters, self.filter_size, activation='leaky_relu', padding='same',strides=1, name='upsampling_conv')
+    def build(self, input_shape):
+        self.conv = tf.keras.layers.Conv1D(
+            self.num_filters,
+            self.filter_size,
+            activation='leaky_relu',
+            padding='same',
+            strides=1,
+            name='upsampling_conv'
+        )
         self.up = tf.keras.layers.UpSampling1D(2, name='upsampling')
+        super().build(input_shape)
 
-
-    def __call__(self, inputs):
+    def call(self, inputs):
         x = self.conv(inputs)
         x = self.up(x)
         return x
