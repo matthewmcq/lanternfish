@@ -163,6 +163,13 @@ cython_debug/
 metadata/
 stem/
 
+.DS_Store
+*/.DS_Store
+
+__pycache__/
+*.pyc
+*/__pycache__/
+
 # old structure
 __old/
 Datasets/
