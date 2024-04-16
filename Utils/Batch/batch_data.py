@@ -27,13 +27,13 @@ def generate_pairs(path_to_song: str, stem_type: str, level: int =12) -> tuple:
     true_dict = Wavelets.makeWaveDict(path_to_song + 'y_true/')
 
     # call make_test_set() to get the test set
-    y_train, y_true = make_test_set(train_dict, true_dict, stem_type, path_to_song, level)
+    y_train, y_true, shape = make_test_set(train_dict, true_dict, stem_type, path_to_song, level)
 
     # convert to tensors
     y_train = tf.convert_to_tensor(y_train)
     y_true = tf.convert_to_tensor(y_true)
 
-    return y_train, y_true
+    return y_train, y_true, shape
 
 
 def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_song: str, level: int=12) -> tuple:
@@ -56,6 +56,8 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
 
     song_name = path_to_song.split('/')[-2]
 
+    train_shape = None
+
     for key in tqdm.tqdm(train_dict.keys(), desc=f"Generating Test Set, Computing DWT for {song_name}", total=len(train_dict), leave=False):
 
         # get the true key
@@ -70,6 +72,10 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
         Wavelets.getWaveletTransform(train_dict, key, level)
         Wavelets.getWaveletTransform(true_dict, true_key, level)
 
+        # get the wavelet coefficients shapes
+        if train_shape is None:
+            train_shape = [c.shape for c in train.dwt]
+
         # get the wavelet coefficients
         true = true_dict[true_key]
         train_tensor = train.tensor_coeffs
@@ -79,7 +85,7 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
         y_train.append(train_tensor)
         y_true.append(true_tensor)
 
-    return y_train, y_true
+    return y_train, y_true, train_shape 
 
 def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_size: int =8, max_songs: int =2, max_samples_per_song: int =10) -> tf.data.Dataset:
     '''
@@ -109,6 +115,7 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
     # generate pairs for each song
     y_train = []
     y_true = []
+    shape = None
     for song in tqdm.tqdm(songs, desc=f"Generating Wavelet Batch: (level = {level}, batch_size = {batch_size}, max_songs = {max_songs}, max_samples_per_song = {max_samples_per_song})", total=len(songs), leave=True):
         # generate pairs for each song
         path_to_song = path_to_training + stem_type + '/' + song 
@@ -123,7 +130,7 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
         if not os.path.isdir(path_to_song + 'y_train/') or not os.path.isdir(path_to_song + 'y_true/'):
             continue
 
-        train, true = generate_pairs(path_to_song, stem_type, level)
+        train, true, shape = generate_pairs(path_to_song, stem_type, level)
         
 
         # limit the number of samples per song
@@ -146,9 +153,9 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
     y_train = tf.convert_to_tensor(y_train)
     y_true = tf.convert_to_tensor(y_true)
 
-    dataset = tf.data.Dataset.from_tensor_slices((y_train, y_true))
+    dataset = tf.data.Dataset.from_tensor_slices((y_train, y_true))#.shuffle(buffer_size=dataset.cardinality()) TODO: uncomment shuffle later
 
     # shuffle and batch the dataset
-    dataset = dataset.shuffle(buffer_size=len(y_train)).batch(batch_size, drop_remainder=True)
+    # dataset = dataset.shuffle(buffer_size=len(y_train)).batch(batch_size, drop_remainder=True)
 
-    return dataset
+    return dataset, shape

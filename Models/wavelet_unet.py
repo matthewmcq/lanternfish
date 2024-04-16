@@ -3,17 +3,14 @@ import numpy as np
 import librosa
 import sys
 
-# from Main import BATCH_PARAMS
-sys.path.append('..')
-from Main import BATCH_PARAMS
-
 
 class WaveletUNet(tf.keras.Model):
+
     def __init__(self, model_config):
         super().__init__()
         self.num_coeffs = model_config['num_coeffs']
         self.wavelet_depth = model_config['wavelet_depth']
-        # self.batch_size = model_config['batch_size']
+        self.batch_size = model_config['batch_size']
         self.channels = model_config['channels']
         self.num_layers = model_config['num_layers']
         self.num_init_filters = model_config['num_init_filters']
@@ -21,77 +18,129 @@ class WaveletUNet(tf.keras.Model):
 
         self.input_shape = (self.wavelet_depth+1, self.num_coeffs, self.channels)
 
+        # Create downsampling blocks TODO: Might make this a dict
+        self.downsampling_blocks = [
+            DownsamplingLayer(self.num_init_filters * (2 ** i), self.filter_size)
+            for i in range(self.num_layers)
+        ]
+
+        # Create upsampling blocks
+        self.upsampling_blocks = [
+            UpsamplingLayer(self.num_init_filters * (2 ** (self.num_layers - i - 1)), self.filter_size)
+            for i in range(self.num_layers)
+        ]
+
+
+        ## TODO: (IMPORTANT) MAKE 342 A PARAMETER, @rayhan this is probably why there was so much effort that went into the padding
+        ## for the Wave-U-Net model
+        self.last_crop = tf.keras.layers.Cropping1D((342, 342), name='last_crop')
+                                                    # ^^^^^^THESE SHOULD NOT BE HARD CODED!!! 
+
+        # Final convolution layer -- pretty sure tanh is the right activation function here bc wavelets can be negative
+        self.output_conv = tf.keras.layers.Conv1D(self.channels, 1, activation='tanh', name='output_conv')
+
+
     def call(self, inputs):
-        current_layer = inputs
-        current_layer = self.get_output(current_layer)
-        return current_layer
 
+        # right now inputs should be of shape (batch_size, num_coeffs, channels)
         
+        current_layer = inputs[0] # need [0] because of the way the data is batched... TODO: fix this and investigate...
 
-    def get_output(self, inputs):
-        current_layer = tf.keras.layers.Input(shape=self.input_shape)(inputs)
-        # current_layer = inputs
-
-        current_layer = tf.keras.layers.Lambda(lambda x: x[0])(current_layer)
-        
+        # store outputs for skip connections        
         enc_outputs = list()
 
-        for i in range(self.num_layers):
-            current_layer = tf.keras.layers.Conv1D(self.num_init_filters + (self.num_init_filters * i), self.filter_size, strides=1, activation='leaky_relu', padding='same')(current_layer)
+        # Downsampling path
+        for block in self.downsampling_blocks:
+
+            # current downsampling block
+            current_layer = block(current_layer)
+
+            # store output for skip connection
             enc_outputs.append(current_layer)
-            current_layer = current_layer[:,::2,:]
 
-        for i in range(self.num_layers):
-            current_layer = tf.keras.layers.Conv1D(self.num_init_filters + (self.num_init_filters * (self.num_layers - i - 1)), self.filter_size, strides=1, activation='leaky_relu', padding='same')(current_layer)
-            current_layer = tf.keras.layers.UpSampling1D(2)(current_layer)
-            # current_layer = self.crop(current_layer, current_layer.shape.as_list(), enc_outputs[-i-1].shape)
-            target_shape = enc_outputs[-i-1].shape
-            current_layer = tf.keras.layers.Lambda(
-                lambda x: tf.image.crop_to_bounding_box(x, 
-                                                        offset_height=0, 
-                                                        offset_width=0, 
-                                                        target_height=target_shape[1], 
-                                                        target_width=target_shape[2]) ,
-                                                        output_shape=(target_shape[1], target_shape[2]))(current_layer)
-            current_layer = tf.keras.layers.Concatenate(axis=1)([current_layer, enc_outputs[-i-1]])
+            # desimate along coefficients
+            current_layer = current_layer[:, ::2, :]
 
-        current_layer = tf.keras.layers.Conv1D(self.num_coeffs * self.channels, self.filter_size, strides=1, activation='sigmoid', padding='same')(current_layer)
-        return current_layer
+        # Upsampling path
+        for i, block in enumerate(self.upsampling_blocks):
+
+            # current upsampling block
+            current_layer = block(current_layer)
+
+            # find associated skip connection
+            skip_conn = enc_outputs[-i-1]
+
+            # pad skip connection if necessary, need desired shape
+            desired_shape = skip_conn.shape
+            
+            if current_layer.shape[1] != desired_shape[1]:
+                ## pad smaller tensor with last value
+                pad = current_layer.shape[1] - desired_shape[1]
+
+                ## pad the skip connection -- we might think about LERP, but this should just end up getting fixed
+                ## when we switch to a learned upsampling layer
+                skip_conn = tf.pad(skip_conn, [[0, 0], [0, pad], [0, 0]], 'CONSTANT')
+
+            # concatenate skip connection
+            current_layer = tf.keras.layers.Concatenate()([current_layer, skip_conn])
+
+        # Crop off the last 342 samples from both sides
+        # currently goes from front and back, but we might want to just go from the back
+        current_layer = self.last_crop(current_layer)
+
+        # Final convolution layer, sigmoid activation
+        output = self.output_conv(current_layer)
+        return output
     
-    # def compile(self, optimizer, loss, metrics):
-    #     self.optimizer = optimizer
-    #     self.loss_function = loss
-    #     self.accuracy_function = metrics[0]
 
-    def crop(tensor, shape, target_shape, match_feature_dim=True):
-        '''
-        Crops a 3D tensor [batch_size, width, channels] along the width axes to a target shape.
-        Performs a centre crop. If the dimension difference is uneven, crop last dimensions first.
-        :param tensor: 4D tensor [batch_size, width, height, channels] that should be cropped. 
-        :param target_shape: Target shape (4D tensor) that the tensor should be cropped to
-        :return: Cropped tensor
-        '''
-        # shape = np.array(tensor.shape.as_list())
-        diff = shape - np.array(target_shape)
-        assert(diff[0] == 0 and (diff[2] == 0 or not match_feature_dim)) # Only width axis can differ
-        if (diff[1] % 2 != 0):
-            print("WARNING: Cropping with uneven number of extra entries on one side")
-        assert diff[1] >= 0 # Only positive difference allowed
-        if diff[1] == 0:
-            return tensor
-        crop_start = diff // 2
-        crop_end = diff - crop_start
+# TODO: Move to Train.py at some point -- maybe not rn for convenience, but definitely later
+def train(model, train_data, epochs=10, batch_size=1):
 
-        return tensor[:,crop_start[1]:-crop_end[1],:]
-
-def train(model, train_data, epochs, batch_size):
+    # I feel like these could go in a config file or kwargs
     optimizer = tf.keras.optimizers.Adam()
     loss_fn = tf.keras.losses.MeanSquaredError()
     metrics = [tf.keras.metrics.RootMeanSquaredError()]
-    
+
+    # Compile the model
     model.compile(optimizer=optimizer, loss=loss_fn, metrics=metrics)
 
+    # print(f"Training data {train_data}")
+
+    # batch the data
+    train_data = train_data.batch(batch_size).prefetch(tf.data.AUTOTUNE)
     
-    model.fit(train_data, epochs=epochs, batch_size=batch_size)
+    # print(f"Training data after batching: {train_data}")
+
+    # train the model
+    model.fit(train_data, epochs=epochs)
 
     return model
+
+### TODO: Might want to put these in a separate file (e.g. Layers.py) 
+class DownsamplingLayer: ## TODO: add get_config if something fucks up when we get to loading (a la hw 5)
+
+    def __init__(self, num_filters, filter_size):
+        self.num_filters = num_filters
+        self.filter_size = filter_size
+
+        self.conv = tf.keras.layers.Conv1D(self.num_filters, self.filter_size, activation='leaky_relu', padding='same',strides=1, name='downsampling_conv')
+
+    def __call__(self, inputs):
+        x = self.conv(inputs)
+        return x
+    
+
+class UpsamplingLayer: ## TODO: add get_config if something fucks up when we get to loading (a la hw 5)
+
+    def __init__(self, num_filters, filter_size):
+        self.num_filters = num_filters
+        self.filter_size = filter_size
+
+        self.conv = tf.keras.layers.Conv1D(self.num_filters, self.filter_size, activation='leaky_relu', padding='same',strides=1, name='upsampling_conv')
+        self.up = tf.keras.layers.UpSampling1D(2, name='upsampling')
+
+
+    def __call__(self, inputs):
+        x = self.conv(inputs)
+        x = self.up(x)
+        return x

@@ -37,7 +37,7 @@ def preprocess_medleydb(stem_type: str, clean: bool =False) -> None:
         Utils.Batch.generate_examples.clean_training_data(TRAIN_PATH, stem_type)
 
     ## call generate_examples() to generate the examples
-    Utils.Batch.generate_examples.generate_data(MEDLEY1_PATH, TRAIN_PATH, stem_type, 10) ## -- WORKS!
+    # Utils.Batch.generate_examples.generate_data(MEDLEY1_PATH, TRAIN_PATH, stem_type, 10) ## -- WORKS!
     Utils.Batch.generate_examples.generate_data(MEDLEY2_PATH, TRAIN_PATH, stem_type, 10) ## -- WORKS!
 
 
@@ -55,9 +55,9 @@ def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2
     - tf.data.Dataset, batched wavelet data
     '''
     ## call batch_wavelets() to batch the wavelet data
-    dataset = Utils.Batch.batch_data.batch_wavelets(TRAIN_PATH, 'vocals', level, batch_size, max_songs, max_samples_per_song)
-    print(f"Dataset: {dataset.element_spec}")
-    return dataset
+    dataset, shape = Utils.Batch.batch_data.batch_wavelets(TRAIN_PATH, 'vocals', level, batch_size, max_songs, max_samples_per_song)
+    
+    return dataset, shape
 
 def main():
 
@@ -70,10 +70,9 @@ def main():
     # model.build((BATCH_SIZE, 5, 220500, 2))
 
     ## test that generate_pairs() works
-    batched_training_data = batch_training_data(*BATCH_PARAMS)
-    print(len(batched_training_data))
+    batched_training_data, shape = batch_training_data(*BATCH_PARAMS)
 
-    print(f"Batched training data: {batched_training_data.element_spec}")
+    
 
     batch_size = cfg.cfg()['batch_size']
     epochs = cfg.cfg()['epochs']

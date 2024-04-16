@@ -1,4 +1,4 @@
-import numpy as n
+import numpy as np
 
 
 # stolen from Wave-U-Net model (for now)
