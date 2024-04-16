@@ -81,6 +81,9 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
         train_tensor = train.tensor_coeffs
         true_tensor = true.tensor_coeffs
 
+        if np.all(train_tensor[1:] == 0) or np.all(true_tensor[1:] == 0) or np.all(train_tensor[1:] == train_tensor[1][0]) or np.all(true_tensor[1:] == true_tensor[1][0]):
+            continue  # skip this sample
+
         # add to the list
         y_train.append(train_tensor)
         y_true.append(true_tensor)
@@ -153,7 +156,7 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
     y_train = tf.convert_to_tensor(y_train)
     y_true = tf.convert_to_tensor(y_true)
 
-    dataset = tf.data.Dataset.from_tensor_slices((y_train, y_true))#.shuffle(buffer_size=dataset.cardinality()) TODO: uncomment shuffle later
+    dataset = tf.data.Dataset.from_tensor_slices((y_train, y_true))
 
     # shuffle and batch the dataset
     # dataset = dataset.shuffle(buffer_size=len(y_train)).batch(batch_size, drop_remainder=True)
