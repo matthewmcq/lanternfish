@@ -166,3 +166,9 @@ stem/
 # old structure
 __old/
 Datasets/
+__pycache__/
+*.pyc
+*/__pycache__/
+*/._.DS_Store
+*/.DS_Store
+.DS_Store

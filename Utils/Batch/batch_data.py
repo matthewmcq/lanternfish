@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import Wavelets
 # import generate_examples as ge
 
-def generate_pairs(path_to_song: str, stem_type: str, level: int =12) -> tuple:
+def generate_pairs(path_to_song: str, stem_type: str, level: int =12, max_songs_per_stem=10) -> tuple:
     '''
     Generate pairs of wavelet data for training and true data
 
@@ -21,13 +21,19 @@ def generate_pairs(path_to_song: str, stem_type: str, level: int =12) -> tuple:
     return: 
     - tuple, pair of wavelet data for training and true data for the audio file
     '''
+
+    ## TODO make random list of indices to select from that are of length max_songs_per_stem
+
+    len_train = len(os.listdir(path_to_song + 'y_train/'))
+
+    indices = np.random.choice(len_train, max_songs_per_stem, replace=True) # got issues with replace=False, so set to True for now
     
     # call Wavelets.makeWaveDict() to get the wavelet dictionary
-    train_dict = Wavelets.makeWaveDict(path_to_song + 'y_train/')
-    true_dict = Wavelets.makeWaveDict(path_to_song + 'y_true/')
+    train_dict = Wavelets.makeWaveDict(path_to_song + 'y_train/', indices=indices)
+    true_dict = Wavelets.makeWaveDict(path_to_song + 'y_true/', indices=None)
 
     # call make_test_set() to get the test set
-    y_train, y_true, shape = make_test_set(train_dict, true_dict, stem_type, path_to_song, level)
+    y_train, y_true, shape = make_test_set(train_dict, true_dict, stem_type, path_to_song, level, max_songs_per_stem)
 
     # convert to tensors
     y_train = tf.convert_to_tensor(y_train)
@@ -36,7 +42,7 @@ def generate_pairs(path_to_song: str, stem_type: str, level: int =12) -> tuple:
     return y_train, y_true, shape
 
 
-def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_song: str, level: int=12) -> tuple:
+def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_song: str, level: int=12, max_songs_per_stem: int=10) -> tuple:
     '''
     Generate the test set for the wavelet data
 
@@ -58,8 +64,14 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
 
     train_shape = None
 
-    for key in tqdm.tqdm(train_dict.keys(), desc=f"Generating Test Set, Computing DWT for {song_name}", total=len(train_dict), leave=False):
+    ## select random max_songs_per_stem keys
+    keys = list(train_dict.keys())
+    if len(keys) > max_songs_per_stem:
+        keys = np.random.choice(keys, max_songs_per_stem, replace=False)
 
+
+    for key in tqdm.tqdm(keys, desc=f"Generating Test Set, Computing DWT for {song_name}", total=len(train_dict), leave=False):
+        
         # get the true key
         train = train_dict[key]
         index = int(key.split("_")[-1][0])
@@ -133,7 +145,7 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
         if not os.path.isdir(path_to_song + 'y_train/') or not os.path.isdir(path_to_song + 'y_true/'):
             continue
 
-        train, true, shape = generate_pairs(path_to_song, stem_type, level)
+        train, true, shape = generate_pairs(path_to_song, stem_type, level, max_songs_per_stem=max_samples_per_song)
         
 
         # limit the number of samples per song
