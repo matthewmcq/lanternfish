@@ -46,37 +46,25 @@ def getWaveletTransform(data: dict, song: str, level: int=12) -> dict:
     # print(f"Left channel waveform: {data[song].waveform[:, 0]}")
 
     # Perform wavelet decomposition
-    coeffs_left = pywt.wavedec(data[song].waveform[:, 0], 'db1', level=level)
-    # coeffs_right = pywt.wavedec(data[song].waveform[:, 1], 'db1', level=level)
-    # print(f"Left coefficients shape: {[c.shape for c in coeffs_left]}")
+    coeffs_left = pywt.wavedec(data[song].waveform[:, 0], 'haar', level=level, mode='reflect')
 
+    
     # Find the maximum length among all coefficients
     # max_len = max([c.shape[0] for c in coeffs_left + coeffs_right])
     max_len = max([c.shape[0] for c in coeffs_left])
+
+    # print([c.shape[0] for c in coeffs_left])
+
     # Stretch the coefficients to the maximum length using interpolation
     stretched_coeffs_left = []
     # stretched_coeffs_right = []
     for c_left in coeffs_left:
         stretched_left = cv2.resize(c_left.reshape(1, -1), (max_len, 1), interpolation=cv2.INTER_NEAREST).flatten()
-        # stretched_right = cv2.resize(c_right.reshape(1, -1), (max_len, 1), interpolation=cv2.INTER_NEAREST).flatten()
         stretched_coeffs_left.append(stretched_left)
-        # stretched_coeffs_right.append(stretched_right)
-
-    # Stack the stretched coefficients along the channel axis
-    # stacked_coeffs = np.stack([stretched_coeffs_left, stretched_coeffs_right], axis=-1)
-
-    # stacked_coeffs = np.stack(stretched_coeffs_left, axis=0)
-    # stacked_coeffs = stacked_coeffs[..., np.newaxis]
-    # Convert the stacked coefficients to a TensorFlow tensor
 
     ## transpose
     stretched_coeffs_left = np.transpose(stretched_coeffs_left)
     tensor_coeffs = tf.convert_to_tensor(stretched_coeffs_left)
-
-    ## expand channel dim to 1
-    # tensor_coeffs = tf.expand_dims(tensor_coeffs, axis=-1)
-    # print(f"Tensor coefficients shape: {tensor_coeffs.shape}")
-    # print(f"Tensor coefficients shape: {tensor_coeffs.shape}")
 
     # Update the data object
     data[song].dwt = coeffs_left

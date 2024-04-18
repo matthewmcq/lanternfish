@@ -93,7 +93,8 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
         train_tensor = train.tensor_coeffs
         true_tensor = true.tensor_coeffs
 
-        if np.all(train_tensor[1:] == 0) or np.all(true_tensor[1:] == 0) or np.all(train_tensor[1:] == train_tensor[1][0]) or np.all(true_tensor[1:] == true_tensor[1][0]):
+        
+        if np.all(train_tensor[0:] == 0) or np.all(true_tensor[0:] == 0) or np.all(train_tensor[1:] == 0) or np.all(true_tensor[1:] == 0): 
             continue  # skip this sample
 
         # add to the list
@@ -148,38 +149,23 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
         train, true, shape = generate_pairs(path_to_song, stem_type, level, max_songs_per_stem=max_samples_per_song)
         
 
-        # limit the number of samples per song
-        # if len(train) > max_samples_per_song:
-        #     indices_to_keep = np.random.choice(len(train), max_samples_per_song, replace=False)
-
-        #     train = [train[i] for i in indices_to_keep]
-        #     true = [true[i] for i in indices_to_keep]
-
         # add to the list
         y_train.append(train)
         y_true.append(true)
 
     # filter out empty samples or samples that have a mismatch in shape
-
-
     valid_indices = []
+
+
     for i in range(len(y_train)):
         if len(y_train[i]) == 0 or len(y_true[i]) == 0:
             continue
-        if len(y_train[i].shape) != len(y_true[0].shape):
+        if len(y_train[i].shape) != 3:
             continue
         valid_indices.append(i)
 
     y_train = [y_train[i] for i in valid_indices]
     y_true = [y_true[i] for i in valid_indices]
-
-    # uncropped_features = y_train[0].shape[1] 
-    # print(f"Uncropped features: {uncropped_features}")
-    
-    ## crop from both sides, with shape (batch_size, num_features, level+1)
-
-    # y_train = [y_train[i][:, :num_features, :] for i in range(len(y_train))]
-    # y_true = [y_true[i][:, :num_features, :] for i in range(len(y_true))]
 
 
     y_train = np.concatenate(y_train)
@@ -191,12 +177,5 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
     y_train = tf.convert_to_tensor(y_train)
     y_true = tf.convert_to_tensor(y_true)
 
-
-
-
-    # dataset = tf.data.Dataset.from_tensor_slices((y_train, y_true))
-
-    # shuffle and batch the dataset
-    # dataset = dataset.shuffle(buffer_size=len(y_train)).batch(batch_size, drop_remainder=True)
 
     return y_train, y_true, shape

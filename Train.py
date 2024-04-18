@@ -3,7 +3,7 @@ import numpy as np
 
 def train(model, y_train, y_true, epochs=10, batch_size=1):
 
-    loss_fn = WaveletLoss()
+    loss_fn = WaveletLoss(model, l1_reg=1e-8, l2_reg=1e-9)
 
     optimizer = tf.keras.optimizers.Adam()
     # loss_fn = tf.keras.losses.MeanSquaredError()
@@ -11,32 +11,22 @@ def train(model, y_train, y_true, epochs=10, batch_size=1):
 
     # Compile the model
     model.compile(optimizer=optimizer, loss=loss_fn, metrics=metrics)
-
-    model.summary()
-
-    # print the model summary
     
-
-    # print(f"Training data {train_data}")
-    # print(f"Training data shape: {train_data}")
-
-    # batch the data
-    # train_data = train_data.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-    
-    # print(f"Training data after batching: {train_data}")
-
     # train the model
     model.fit(x=y_train, y=y_true,  epochs=epochs, batch_size =batch_size, shuffle=True, validation_split=0.2)
     return model
 
 
 class WaveletLoss(tf.keras.losses.Loss):
-    def __init__(self, wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss', **kwargs):
+    def __init__(self, model, wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss',   l1_reg=0.0, l2_reg=0.0, **kwargs):
         super().__init__(name=name, **kwargs)
+        self.model = model
         self.wavelet_level = wavelet_level
         self.lambda_vec = lambda_vec
         self.lambda_11 = lambda_11
         self.lambda_12 = lambda_12
+        self.l1_reg = l1_reg
+        self.l2_reg = l2_reg
 
     # @tf.function
     def call(self, y_true, y_pred):
@@ -51,5 +41,14 @@ class WaveletLoss(tf.keras.losses.Loss):
 
         # For the last level, take MSE of detail coefficients times lambda
         loss += self.lambda_vec[-1] * tf.keras.losses.mean_squared_error(y_true[:, :, -1], y_pred[:, :, -1])
+
+        # Add regularization losses
+        if self.l1_reg > 0:
+            l1_loss = tf.add_n([tf.reduce_sum(tf.abs(w)) for w in self.model.trainable_variables])
+            loss += self.l1_reg * l1_loss
+
+        if self.l2_reg > 0:
+            l2_loss = tf.add_n([tf.reduce_sum(tf.square(w)) for w in self.model.trainable_variables])
+            loss += self.l2_reg * l2_loss
 
         return loss
