@@ -16,7 +16,7 @@ CURR_STEM_TYPE = 'vocals'
 
 
 
-def preprocess_medleydb(stem_type: str, clean: bool =False) -> None:
+def preprocess_medleydb(stem_type: str, clean: bool =False, seconds=3) -> None:
     '''
     Preprocess the MedleyDB dataset to generate training data
 
@@ -32,11 +32,11 @@ def preprocess_medleydb(stem_type: str, clean: bool =False) -> None:
         Utils.Batch.generate_examples.clean_training_data(TRAIN_PATH, stem_type)
 
     ## call generate_examples() to generate the examples
-    Utils.Batch.generate_examples.generate_data(MEDLEY1_PATH, TRAIN_PATH, stem_type, 4) ## -- WORKS!
-    Utils.Batch.generate_examples.generate_data(MEDLEY2_PATH, TRAIN_PATH, stem_type, 4) ## -- WORKS!
+    Utils.Batch.generate_examples.generate_data(MEDLEY1_PATH, TRAIN_PATH, stem_type, seconds) ## -- WORKS!
+    Utils.Batch.generate_examples.generate_data(MEDLEY2_PATH, TRAIN_PATH, stem_type, seconds) ## -- WORKS!
 
 
-def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2, max_samples_per_song: int = 10) -> tf.data.Dataset:
+def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2, max_samples_per_song: int = 10, num_features: int=65536) -> tf.data.Dataset:
     '''
     Batch the wavelet data for training
 
@@ -50,7 +50,7 @@ def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2
     - tf.data.Dataset, batched wavelet data
     '''
     ## call batch_wavelets() to batch the wavelet data
-    y_train, y_true, shape = Utils.Batch.batch_data.batch_wavelets(TRAIN_PATH, 'vocals', level, batch_size, max_songs, max_samples_per_song)
+    y_train, y_true, shape = Utils.Batch.batch_data.batch_wavelets(TRAIN_PATH, 'vocals', level, batch_size, max_songs, max_samples_per_song, num_features)
     
     return y_train, y_true, shape
 
@@ -68,7 +68,7 @@ def main():
     BATCH_PARAMS = (WAVELET_DEPTH, BATCH_SIZE, MAX_SONGS, MAX_SAMPLES_PER_SONG)
 
     ## batch the data for medleyDB
-    # preprocess_medleydb(CURR_STEM_TYPE, clean=False)
+    # preprocess_medleydb(CURR_STEM_TYPE, clean=True)
 
     ## set the batch size and epochs
     batch_size = model_config['batch_size']
@@ -76,17 +76,7 @@ def main():
 
     ## test that generate_pairs() works
     y_train, y_true, shape = batch_training_data(*BATCH_PARAMS)
-    # Visualize the first 5 entries before passing into the model
-
-    ## print the first 5 entries before passing into the model
-    num_samples = 5
-
-    for i in range(num_samples):
-        print(f"Sample {i+1}:")
-        print("y_train:", y_train[i].numpy())
-        print("y_true:", y_true[i].numpy())
         
-    
         
     ## define the model
     model = Models.wavelet_unet.WaveletUNet(model_config)
@@ -104,7 +94,7 @@ def main():
     # print("Visualization of data after training the model:")
     # for i in range(num_samples):
     #     # Get the true and predicted coefficients for the i-th sample
-    #     true_coeffs = y_true[i].numpy()
+    #     true_coeffs = y_true[i]
     #     pred_coeffs = model.predict(y_train[i:i+1])[0]
 
     #     print(f"Sample {i+1}:")
@@ -113,6 +103,12 @@ def main():
     #     print("Predicted Coefficients:")
     #     Utils.Plot.visualize_wavelet(pred_coeffs)
 
+    
+    model.save('wavelet_unet_model_weights.keras')
+    model.save('wavelet_unet_model.h5')
+
+    loaded_model = tf.keras.models.load_model('wavelet_unet_model.keras')
+    loaded_model = tf.keras.models.load_model('wavelet_unet_model.h5')
 
     
 if __name__ == '__main__':

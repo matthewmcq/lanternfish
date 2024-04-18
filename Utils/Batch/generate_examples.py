@@ -2,6 +2,7 @@ import librosa
 import os
 import soundfile as sf
 import sys
+import tqdm
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from Wavelets import SR
@@ -69,7 +70,7 @@ def add_full_audio_to_perms(folder: str, PATH_DB: str) -> None:
 
 
 
-def split_audios(stem: str, duration=10) -> list:
+def split_audios(stem: str, duration: float=2.97) -> list:
     '''
     Splits the audio into chunks of duration seconds.
 
@@ -85,8 +86,8 @@ def split_audios(stem: str, duration=10) -> list:
     try:
         stem_audio, sr = librosa.load(stem, mono=False, sr=SR)
     except Exception as e:
-        print(f"Error loading stem {stem}. {e}")
-        print(f" song shape: {len(stem), len(stem[0])}")
+        # print(f"Error loading stem {stem}. {e}")
+        # print(f" song shape: {len(stem), len(stem[0])}")
         return []
         
     # Transpose to have time as first dimension
@@ -95,14 +96,16 @@ def split_audios(stem: str, duration=10) -> list:
     # get total number of samples and number of chunks
     n_samples = len(stem_audio)
     # print(n_samples)
-    n_chunks = n_samples // (sr * duration)
+    n_chunks = n_samples / (sr * duration)
+    n_chunks = int(n_chunks)
+    # print(f"n_chunks: {n_chunks}")
     # print(n_chunks)
     chunks = []
 
     # Split into chunks
     for i in range(n_chunks):
-        start = i * sr * duration
-        end = (i + 1) * sr * duration
+        start = int(i * sr * duration)
+        end = int((i + 1) * sr * duration)
         stem_chunk = stem_audio[start:end]
         chunks.append(stem_chunk)
 
@@ -154,7 +157,7 @@ def song_has_stem(folder: str, stem_type: str, PATH_DB: str) -> bool:
         return True
 
 
-def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =10) -> None:
+def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str, seconds: float =2.97) -> None:
     '''
     Splits the audio in the folder into chunks of duration seconds.
 
@@ -235,7 +238,7 @@ def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str,
         write_audio(perm_split, f"{stem_type}_{i}", TRAIN_PATH)
 
 
-def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =10) -> None:
+def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: float =2.97, add_mix_perm: bool=False) -> None:
     '''
     Generates the training data for a given stem type.
 
@@ -249,13 +252,13 @@ def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: int =1
     None
     '''
     folders = os.listdir(PATH_DB)
-    for folder in folders:
-
-        # add full audio to perms, might error if full audio already exists, in that case, just go to split_per_folder
-        try:
-            add_full_audio_to_perms(folder, PATH_DB)
-        except Exception as e:
-            print(f"Error adding full audio to perms for {folder}. {e}")
+    for folder in tqdm.tqdm(folders, desc=f"Generating Training Data for {stem_type}", total=len(folders), leave=True):
+        if add_mix_perm:
+            # add full audio to perms, might error if full audio already exists, in that case, just go to split_per_folder
+            try:
+                add_full_audio_to_perms(folder, PATH_DB)
+            except Exception as e:
+                print(f"Error adding full audio to perms for {folder}. {e}")
 
         # split the audio into chunks
         split_per_folder(folder, PATH_DB, PATH_Train, stem_type, seconds)
@@ -290,7 +293,7 @@ def clean_training_data(PATH_Train: str, stem_type: str, folder: str=None) -> No
 
         if not os.path.isdir(path_y_true):
 
-            print(f"Folder {folder} does not exist. Skipping.")
+            # print(f"Folder {folder} does not exist. Skipping.")
             continue
 
         else:
