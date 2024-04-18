@@ -1,5 +1,6 @@
 import Utils.Batch.generate_examples
 import Utils.Batch.batch_data
+import Utils.Plot
 import tensorflow as tf
 import Models.wavelet_unet
 import Config as cfg
@@ -49,9 +50,9 @@ def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2
     - tf.data.Dataset, batched wavelet data
     '''
     ## call batch_wavelets() to batch the wavelet data
-    dataset, shape = Utils.Batch.batch_data.batch_wavelets(TRAIN_PATH, 'vocals', level, batch_size, max_songs, max_samples_per_song)
+    y_train, y_true, shape = Utils.Batch.batch_data.batch_wavelets(TRAIN_PATH, 'vocals', level, batch_size, max_songs, max_samples_per_song)
     
-    return dataset, shape
+    return y_train, y_true, shape
 
 def main():
 
@@ -74,24 +75,43 @@ def main():
     epochs = model_config['epochs']
 
     ## test that generate_pairs() works
-    batched_training_data, shape = batch_training_data(*BATCH_PARAMS)
+    y_train, y_true, shape = batch_training_data(*BATCH_PARAMS)
+    # Visualize the first 5 entries before passing into the model
 
+    ## print the first 5 entries before passing into the model
+    num_samples = 5
+
+    for i in range(num_samples):
+        print(f"Sample {i+1}:")
+        print("y_train:", y_train[i].numpy())
+        print("y_true:", y_true[i].numpy())
+        
     
-    
+        
     ## define the model
     model = Models.wavelet_unet.WaveletUNet(model_config)
 
     # define a dummy input to build the model
-    dummy_input = tf.random.normal(shape=(batch_size, model_config['num_coeffs'], WAVELET_DEPTH+1))
-    
-    # build the model
-    model(dummy_input)
+    model(tf.random.normal(shape=(batch_size, model_config['num_coeffs'], WAVELET_DEPTH+1)))
 
     # print the model summary
     model.summary()
 
     ## train the model
-    model = train(model, batched_training_data, epochs, batch_size)
+    model = train(model, y_train, y_true, epochs, batch_size)
+
+    # Inspect and visualize the first 5 entries after training the model
+    # print("Visualization of data after training the model:")
+    # for i in range(num_samples):
+    #     # Get the true and predicted coefficients for the i-th sample
+    #     true_coeffs = y_true[i].numpy()
+    #     pred_coeffs = model.predict(y_train[i:i+1])[0]
+
+    #     print(f"Sample {i+1}:")
+    #     print("True Coefficients:")
+    #     Utils.Plot.visualize_wavelet(true_coeffs)
+    #     print("Predicted Coefficients:")
+    #     Utils.Plot.visualize_wavelet(pred_coeffs)
 
 
     

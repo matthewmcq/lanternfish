@@ -93,7 +93,9 @@ import sys
 # Stats: W/O  BN: batches 180, bs 16, init_filters 12, layers 10, filter_size 16, wavelet_depth 4 -- loss (MSE): ep1 0.0136, ep2 0.0127, ep3 0.0126, ep4 0.0179, ep5 0.0131, ep6 0.0131 (same for rest)
 
 ##-- 
-# Num_layers 20: ~ 20 min per epoch (letting run overnight)
+# Num_layers 16, num_init_filters 20: ~ 3.25hr per epoch
+
+# Stats: WITH BN: batches 352, bs 32, init_filters 20, layers 16, filter_size 16, wavelet_depth 4 -- loss (MSE): ep1 -.---, ep2 -.---, ep3 -.---, ep4 -.---, ep5 -.---, ep6 -.--- 
 
 ### TODO: FILTER_SIZE: -- Increase filter_size to 20, 24, and 32 and compare
 
@@ -127,11 +129,11 @@ class WaveletUNet(tf.keras.Model):
             num_filters = self.num_init_filters + (self.num_init_filters * i)
             self.downsampling_blocks[block_name] = DownsamplingLayer(num_filters, self.filter_size, name=block_name)
 
-        # # Create batch normalization layers for downsampling blocks
-        # self.DS_batch_norm = {}
-        # for i in range(self.num_layers):
-        #     block_name = f'ds{i+1}'
-        #     self.DS_batch_norm[block_name] = tf.keras.layers.BatchNormalization(axis=1, name=f'{block_name}_batch_norm')
+        # Create batch normalization layers for downsampling blocks
+        self.DS_batch_norm = {}
+        for i in range(self.num_layers):
+            block_name = f'ds{i+1}'
+            self.DS_batch_norm[block_name] = tf.keras.layers.BatchNormalization(axis=1, name=f'{block_name}_batch_norm')
 
         # Create bottle neck
         self.bottle_neck = tf.keras.layers.Conv1D(self.num_init_filters + (self.num_init_filters * self.num_layers), self.filter_size, activation='leaky_relu', padding='same', strides=1, name='bottle_neck')
@@ -143,11 +145,11 @@ class WaveletUNet(tf.keras.Model):
             num_filters = self.num_init_filters + (self.num_init_filters * (self.num_layers - i - 1))
             self.upsampling_blocks[block_name] = UpsamplingLayer(num_filters, self.filter_size, name=block_name)
         
-        # # Create batch normalization layers for upsampling blocks
-        # self.US_batch_norm = {}
-        # for i in range(self.num_layers):
-        #     block_name = f'us{i+1}'
-        #     self.US_batch_norm[block_name] = tf.keras.layers.BatchNormalization(axis=1, name=f'{block_name}_batch_norm')
+        # Create batch normalization layers for upsampling blocks
+        self.US_batch_norm = {}
+        for i in range(self.num_layers):
+            block_name = f'us{i+1}'
+            self.US_batch_norm[block_name] = tf.keras.layers.BatchNormalization(axis=1, name=f'{block_name}_batch_norm')
 
 
         # Cropping layer
@@ -162,7 +164,7 @@ class WaveletUNet(tf.keras.Model):
         super().build(input_shape)
 
 
-    def call(self, inputs):
+    def call(self, inputs, is_training=True):
         
         current_layer = inputs 
 
@@ -177,10 +179,10 @@ class WaveletUNet(tf.keras.Model):
 
             current_layer = block(current_layer)
             
-            # # Apply batch normalization
-            # if is_training:
-            #     batch_norm = self.DS_batch_norm[block_name]
-            #     current_layer = batch_norm(current_layer)
+            # Apply batch normalization
+            if is_training:
+                batch_norm = self.DS_batch_norm[block_name]
+                current_layer = batch_norm(current_layer)
 
             # Save for skip connections
             enc_outputs.append(current_layer)
@@ -223,10 +225,10 @@ class WaveletUNet(tf.keras.Model):
             # Concatenate with skip connection
             current_layer = tf.keras.layers.Concatenate()([current_layer, skip_conn])
 
-            # # Apply batch normalization
-            # if is_training:
-            #     batch_norm = self.US_batch_norm[block_name]
-            #     current_layer = batch_norm(current_layer)
+            # Apply batch normalization
+            if is_training:
+                batch_norm = self.US_batch_norm[block_name]
+                current_layer = batch_norm(current_layer)
             
         
         # Final convolution layer, tanh activation

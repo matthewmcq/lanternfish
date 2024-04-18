@@ -168,9 +168,12 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
     y_train = tf.convert_to_tensor(y_train)
     y_true = tf.convert_to_tensor(y_true)
 
-    dataset = tf.data.Dataset.from_tensor_slices((y_train, y_true))
+
+
+
+    # dataset = tf.data.Dataset.from_tensor_slices((y_train, y_true))
 
     # shuffle and batch the dataset
     # dataset = dataset.shuffle(buffer_size=len(y_train)).batch(batch_size, drop_remainder=True)
 
-    return dataset, shape
+    return y_train, y_true, shape
