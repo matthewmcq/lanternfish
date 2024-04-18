@@ -14,6 +14,7 @@ def train(model, train_data, epochs=10, batch_size=1):
     
 
     # print(f"Training data {train_data}")
+    print(f"Training data shape: {train_data}")
 
     # batch the data
     train_data = train_data.batch(batch_size).prefetch(tf.data.AUTOTUNE)
@@ -21,6 +22,5 @@ def train(model, train_data, epochs=10, batch_size=1):
     # print(f"Training data after batching: {train_data}")
 
     # train the model
-    model.fit(train_data, epochs=epochs)
-
+    model.fit(train_data, epochs=epochs, batch_size =batch_size, shuffle=True)
     return model

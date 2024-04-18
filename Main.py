@@ -31,8 +31,8 @@ def preprocess_medleydb(stem_type: str, clean: bool =False) -> None:
         Utils.Batch.generate_examples.clean_training_data(TRAIN_PATH, stem_type)
 
     ## call generate_examples() to generate the examples
-    # Utils.Batch.generate_examples.generate_data(MEDLEY1_PATH, TRAIN_PATH, stem_type, 10) ## -- WORKS!
-    Utils.Batch.generate_examples.generate_data(MEDLEY2_PATH, TRAIN_PATH, stem_type, 10) ## -- WORKS!
+    Utils.Batch.generate_examples.generate_data(MEDLEY1_PATH, TRAIN_PATH, stem_type, 4) ## -- WORKS!
+    Utils.Batch.generate_examples.generate_data(MEDLEY2_PATH, TRAIN_PATH, stem_type, 4) ## -- WORKS!
 
 
 def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2, max_samples_per_song: int = 10) -> tf.data.Dataset:
@@ -67,24 +67,28 @@ def main():
     BATCH_PARAMS = (WAVELET_DEPTH, BATCH_SIZE, MAX_SONGS, MAX_SAMPLES_PER_SONG)
 
     ## batch the data for medleyDB
-    # preprocess_medleydb(CURR_STEM_TYPE)
-    
-    ## define the model
-    model = Models.wavelet_unet.WaveletUNet(model_config)
+    # preprocess_medleydb(CURR_STEM_TYPE, clean=False)
 
-    # model.build((BATCH_SIZE, 5, 220500, 2))
-    dummy_input = tf.random.normal(shape=(1, WAVELET_DEPTH+1, model_config['num_coeffs'], model_config['channels']))
-    output = model(dummy_input)
-
-    model.summary()
+    ## set the batch size and epochs
+    batch_size = model_config['batch_size']
+    epochs = model_config['epochs']
 
     ## test that generate_pairs() works
     batched_training_data, shape = batch_training_data(*BATCH_PARAMS)
 
     
+    
+    ## define the model
+    model = Models.wavelet_unet.WaveletUNet(model_config)
 
-    batch_size = model_config['batch_size']
-    epochs = model_config['epochs']
+    # define a dummy input to build the model
+    dummy_input = tf.random.normal(shape=(batch_size, model_config['num_coeffs'], WAVELET_DEPTH+1))
+    
+    # build the model
+    model(dummy_input)
+
+    # print the model summary
+    model.summary()
 
     ## train the model
     model = train(model, batched_training_data, epochs, batch_size)
