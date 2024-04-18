@@ -84,7 +84,7 @@ def getWaveletTransform(data: dict, song: str, level: int=12) -> dict:
 
     return data
 
-def makeWaveDict(folder_name: str) -> dict:
+def makeWaveDict(folder_name: str, indices: list) -> dict:
     '''
     Make a dictionary of wavelet data
 
@@ -100,6 +100,9 @@ def makeWaveDict(folder_name: str) -> dict:
     # Get all the filenames in the folder
     filenames = os.listdir(folder_name)
     filenames = [folder_name + filename for filename in filenames if filename.endswith('.wav')]
+
+    if indices is not None:
+        filenames = [filenames[i] for i in indices]
 
     song_name = folder_name.split('/')[-2]
 

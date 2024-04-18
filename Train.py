@@ -10,6 +10,8 @@ def train(model, train_data, epochs=10, batch_size=1):
     # Compile the model
     model.compile(optimizer=optimizer, loss=loss_fn, metrics=metrics)
 
+    model.summary()
+
     # print the model summary
     
 
@@ -22,5 +24,5 @@ def train(model, train_data, epochs=10, batch_size=1):
     # print(f"Training data after batching: {train_data}")
 
     # train the model
-    model.fit(train_data, epochs=epochs, batch_size =batch_size, shuffle=True)
+    model.fit(train_data,  epochs=epochs, batch_size =batch_size, shuffle=True)
     return model
