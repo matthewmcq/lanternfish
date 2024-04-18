@@ -201,6 +201,8 @@ class WaveletUNet(tf.keras.Model):
             block_name = f'us{self.num_layers - i}'
             block = self.upsampling_blocks[block_name]
 
+            print(f"current_layer shape: {current_layer.shape} at block {block_name}")
+
             current_layer = block(current_layer)
 
             # Get skip connection
