@@ -143,7 +143,8 @@ class WaveletUNet(tf.keras.Model):
         for i in range(self.num_layers):
             block_name = f'us{i+1}'
             num_filters = self.num_init_filters + (self.num_init_filters * (self.num_layers - i - 1))
-            self.upsampling_blocks[block_name] = UpsamplingLayer(num_filters, self.filter_size, name=block_name)
+            out_channels = num_filters // 2
+            self.upsampling_blocks[block_name] = UpsamplingLayer(num_filters, self.filter_size, out_channels, name=block_name)
         
         # Create batch normalization layers for upsampling blocks
         self.US_batch_norm = {}
@@ -172,7 +173,7 @@ class WaveletUNet(tf.keras.Model):
 
         # Downsampling path
         for i in range(self.num_layers):
-
+            # print(f"DS {i} Layer input Shape: {current_layer.shape}")
             # Apply downsampling block
             block_name = f'ds{i+1}'
             block = self.downsampling_blocks[block_name]
@@ -189,15 +190,18 @@ class WaveletUNet(tf.keras.Model):
             
             # Decimation step
             current_layer = current_layer[:, ::2, :]
+            # print(f"DS {i} Layer output Shape: {current_layer.shape}")
             
 
         # Bottle neck
+        # print(f"Bottle Neck Layer input Shape: {current_layer.shape}")
         current_layer = self.bottle_neck(current_layer)
-
+        # print(f"Bottle Neck Layer output Shape: {current_layer.shape}")
         # Upsampling path
         for i in range(self.num_layers):
-
+            # print(f"US {i} Layer input Shape: {current_layer.shape}")
             # Apply upsampling block
+            # print(f"US {i} Layer input Shape: {current_layer.shape}")
             block_name = f'us{self.num_layers - i}'
             block = self.upsampling_blocks[block_name]
 
@@ -223,14 +227,17 @@ class WaveletUNet(tf.keras.Model):
                 crop_end = crop_start + desired_shape[1]
                 current_layer = tf.slice(current_layer, [0, crop_start, 0], [-1, desired_shape[1], -1])
 
-
+            # print(f"US {i} block output Shape: {current_layer.shape}")
             # Concatenate with skip connection
             current_layer = tf.keras.layers.Concatenate()([current_layer, skip_conn])
+            # print(f"US {i} concat output Shape: {current_layer.shape}")
 
             # Apply batch normalization
             if is_training:
                 batch_norm = self.US_batch_norm[block_name]
                 current_layer = batch_norm(current_layer)
+
+            
             
         
         # Final convolution layer, tanh activation
@@ -264,10 +271,11 @@ class DownsamplingLayer(tf.keras.layers.Layer):
 
 class UpsamplingLayer(tf.keras.layers.Layer): ## TODO: Implement Interpolation Layer
 
-    def __init__(self, num_filters, filter_size, strides=2, **kwargs):
+    def __init__(self, num_filters, filter_size, out_channels, strides=2, **kwargs):
         super().__init__(**kwargs)
         self.num_filters = num_filters
         self.filter_size = filter_size
+        self.out_channels = out_channels
         self.strides = strides
 
     def build(self, input_shape):
@@ -279,8 +287,16 @@ class UpsamplingLayer(tf.keras.layers.Layer): ## TODO: Implement Interpolation L
             padding='same',
             name='upsampling_conv_transpose'
         )
+        self.conv = tf.keras.layers.Conv1D(
+            self.out_channels,
+            1,
+            activation='leaky_relu',
+            padding='same',
+            name='upsampling_conv'
+        )
         super().build(input_shape)
 
     def call(self, inputs):
         x = self.conv_transpose(inputs)
+        x = self.conv(x)
         return x

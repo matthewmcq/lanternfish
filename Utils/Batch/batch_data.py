@@ -102,7 +102,7 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
 
     return y_train, y_true, train_shape 
 
-def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_size: int =8, max_songs: int =2, max_samples_per_song: int =10) -> tf.data.Dataset:
+def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_size: int =8, max_songs: int =2, max_samples_per_song: int =10, num_features: int = 65536) -> tf.data.Dataset:
     '''
     Batch the wavelet data for training
 
@@ -149,15 +149,38 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
         
 
         # limit the number of samples per song
-        if len(train) > max_samples_per_song:
-            indices_to_keep = np.random.choice(len(train), max_samples_per_song, replace=False)
+        # if len(train) > max_samples_per_song:
+        #     indices_to_keep = np.random.choice(len(train), max_samples_per_song, replace=False)
 
-            train = [train[i] for i in indices_to_keep]
-            true = [true[i] for i in indices_to_keep]
+        #     train = [train[i] for i in indices_to_keep]
+        #     true = [true[i] for i in indices_to_keep]
 
         # add to the list
         y_train.append(train)
         y_true.append(true)
+
+    # filter out empty samples or samples that have a mismatch in shape
+
+
+    valid_indices = []
+    for i in range(len(y_train)):
+        if len(y_train[i]) == 0 or len(y_true[i]) == 0:
+            continue
+        if len(y_train[i].shape) != len(y_true[0].shape):
+            continue
+        valid_indices.append(i)
+
+    y_train = [y_train[i] for i in valid_indices]
+    y_true = [y_true[i] for i in valid_indices]
+
+    # uncropped_features = y_train[0].shape[1] 
+    # print(f"Uncropped features: {uncropped_features}")
+    
+    ## crop from both sides, with shape (batch_size, num_features, level+1)
+
+    # y_train = [y_train[i][:, :num_features, :] for i in range(len(y_train))]
+    # y_true = [y_true[i][:, :num_features, :] for i in range(len(y_true))]
+
 
     y_train = np.concatenate(y_train)
     y_true = np.concatenate(y_true)
