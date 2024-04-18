@@ -3,10 +3,11 @@ import numpy as np
 
 def train(model, y_train, y_true, epochs=10, batch_size=1):
 
-    # I feel like these could go in a config file or kwargs
+    loss_fn = WaveletLoss()
+
     optimizer = tf.keras.optimizers.Adam()
-    loss_fn = tf.keras.losses.MeanSquaredError()
-    metrics = [tf.keras.metrics.RootMeanSquaredError(), tf.keras.metrics.MeanAbsoluteError()]
+    # loss_fn = tf.keras.losses.MeanSquaredError()
+    metrics = [tf.keras.metrics.RootMeanSquaredError(), tf.keras.metrics.MeanSquaredError()]
 
     # Compile the model
     model.compile(optimizer=optimizer, loss=loss_fn, metrics=metrics)
@@ -30,7 +31,7 @@ def train(model, y_train, y_true, epochs=10, batch_size=1):
 
 
 class WaveletLoss(tf.keras.losses):
-    def __init__(self, wavelet_level, lambda_vec, lambda_11, lambda_12, **kwargs):
+    def __init__(self, wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, **kwargs):
         super(WaveletLoss, self).__init__(**kwargs)
         self.wavelet_level = wavelet_level
         self.lambda_vec = lambda_vec
@@ -39,7 +40,8 @@ class WaveletLoss(tf.keras.losses):
 
     def call(self, y_true, y_pred):
         # first index are approximation (midband) coefficients second index are detail coefficients
-        loss = self.lambda_11 * tf.keras.losses.MeanSquaredError(y_true[0], y_pred[0]) + self.lambda_12 * tf.keras.losses.MeanAbsoluteError(y_true[1], y_pred[1])
+        loss = self.lambda_11 * tf.keras.losses.MeanSquaredError(y_true[0], y_pred[0]) 
+        loss += self.lambda_12 * tf.keras.losses.MeanAbsoluteError(y_true[1], y_pred[1])
         loss *= self.lambda_vec[0]
 
         # for levels 2 through second to last, take MAE of detail coefficients times lambda
