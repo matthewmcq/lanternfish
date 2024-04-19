@@ -3,11 +3,11 @@ import numpy as np
 
 def train(model, y_train, y_true, epochs=10, batch_size=1):
 
-    loss_fn = WaveletLoss(model, l1_reg=1e-8, l2_reg=1e-9)
+    loss_fn = WaveletLoss(model, l1_reg=5e-8, l2_reg=5e-9)
 
     optimizer = tf.keras.optimizers.Adam()
     # loss_fn = tf.keras.losses.MeanSquaredError()
-    metrics = [tf.keras.metrics.RootMeanSquaredError(), tf.keras.metrics.MeanSquaredError(), tf.keras.metrics.MeanAbsoluteError()]
+    metrics = [tf.keras.metrics.RootMeanSquaredError(), tf.keras.metrics.MeanSquaredError()]
 
     # Compile the model
     model.compile(optimizer=optimizer, loss=loss_fn, metrics=metrics)

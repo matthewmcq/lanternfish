@@ -109,7 +109,7 @@ def main():
     print("Default Loss without regularization:", loss(y_true, y_train))
     print("Default Loss (All zeros):", loss(y_true, zero_train))
 
-    loss = WaveletLoss(model, wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss',   l1_reg=1e-8, l2_reg=1e-9)
+    loss = WaveletLoss(model, wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss',   l1_reg=5e-8, l2_reg=5e-9)
     print("Default loss with regularization:", loss(y_true, y_train))
     print("Default Loss (All zeros) with regularization:", loss(y_true, zero_train))
     ## train the model
