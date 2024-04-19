@@ -14,7 +14,7 @@ def cfg():
                     'wavelet_depth': 4,
                     'batch_size' : 16, # Batch size
                     'channels': 1, # 1 => mono, 2 => stereo -- currently only supporting mono to reduce complexity
-                    'epochs': 10,
+                    'epochs': 7,
                     'max_songs': 86, # 86 = all songs
                     'max_samples_per_song': 420, # 
                     'num_init_filters': 25, # 
