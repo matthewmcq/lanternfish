@@ -71,6 +71,7 @@ def main():
 
     ## batch the data for medleyDB
     # preprocess_medleydb(CURR_STEM_TYPE, clean=True)
+    
 
     ## set the batch size and epochs
     batch_size = model_config['batch_size']
@@ -78,6 +79,15 @@ def main():
 
     ## test that generate_pairs() works
     y_train, y_true, shape = batch_training_data(*BATCH_PARAMS)
+
+    # (num_samples, num_coeffs, wavelet_depth+1) tf.Tensors
+    # (3, num_coeffs, wavelet_depth+1)
+
+    print(f"y_train[0].shape: {y_train[0].shape}")
+
+    Utils.Plot.visualize_wavelet(y_train[0])
+
+    exit()
     
     # print(y_train)
     # print(y_true)

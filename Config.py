@@ -16,7 +16,7 @@ def cfg():
                     'channels': 1, # 1 => mono, 2 => stereo -- currently only supporting mono to reduce complexity
                     'epochs': 15,
                     'max_songs': 86, # 86 = all songs
-                    'max_samples_per_song': 400, # 
+                    'max_samples_per_song': 1, # 
                     'num_init_filters': 15, # gradients exploded with 24
                     }
     
