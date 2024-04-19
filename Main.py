@@ -4,7 +4,7 @@ import Utils.Plot
 import tensorflow as tf
 import Models.wavelet_unet
 import Config as cfg
-from Train import train
+from Train import train, WaveletLoss
 
 ### DO NOT CHANGE ###
 MEDLEY2_PATH = 'Datasets/MedleyDB/V2/'
@@ -16,7 +16,7 @@ CURR_STEM_TYPE = 'vocals'
 
 
 
-def preprocess_medleydb(stem_type: str, clean: bool =False, seconds=3) -> None:
+def preprocess_medleydb(stem_type: str, clean: bool =False, sample_length=65536) -> None:
     '''
     Preprocess the MedleyDB dataset to generate training data
 
@@ -32,8 +32,8 @@ def preprocess_medleydb(stem_type: str, clean: bool =False, seconds=3) -> None:
         Utils.Batch.generate_examples.clean_training_data(TRAIN_PATH, stem_type)
 
     ## call generate_examples() to generate the examples
-    Utils.Batch.generate_examples.generate_data(MEDLEY1_PATH, TRAIN_PATH, stem_type, seconds) ## -- WORKS!
-    Utils.Batch.generate_examples.generate_data(MEDLEY2_PATH, TRAIN_PATH, stem_type, seconds) ## -- WORKS!
+    Utils.Batch.generate_examples.generate_data(MEDLEY1_PATH, TRAIN_PATH, stem_type, sample_length) ## -- WORKS!
+    Utils.Batch.generate_examples.generate_data(MEDLEY2_PATH, TRAIN_PATH, stem_type, sample_length) ## -- WORKS!
 
 
 def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2, max_samples_per_song: int = 10, num_features: int=65536) -> tf.data.Dataset:
@@ -78,7 +78,9 @@ def main():
 
     ## test that generate_pairs() works
     y_train, y_true, shape = batch_training_data(*BATCH_PARAMS)
-        
+    
+    # print(y_train)
+    # print(y_true)
         
     ## define the model
     model = Models.wavelet_unet.WaveletUNet(model_config)
@@ -89,28 +91,26 @@ def main():
     # print the model summary
     model.summary()
 
+    ## check the loss function for all zeros
+    zero_train = tf.zeros_like(y_train)
+
+    ## check default loss:
+    loss = WaveletLoss(model, wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss',   l1_reg=0.0, l2_reg=0.0)
+    print("Default Loss without regularization:", loss(y_true, y_train))
+    print("Default Loss (All zeros):", loss(y_true, zero_train))
+
+    loss = WaveletLoss(model, wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss',   l1_reg=1e-8, l2_reg=1e-9)
+    print("Default loss with regularization:", loss(y_true, y_train))
+    print("Default Loss (All zeros) with regularization:", loss(y_true, zero_train))
     ## train the model
     model = train(model, y_train, y_true, epochs, batch_size)
 
-    # Inspect and visualize the first 5 entries after training the model
-    # print("Visualization of data after training the model:")
-    # for i in range(num_samples):
-    #     # Get the true and predicted coefficients for the i-th sample
-    #     true_coeffs = y_true[i]
-    #     pred_coeffs = model.predict(y_train[i:i+1])[0]
-
-    #     print(f"Sample {i+1}:")
-    #     print("True Coefficients:")
-    #     Utils.Plot.visualize_wavelet(true_coeffs)
-    #     print("Predicted Coefficients:")
-    #     Utils.Plot.visualize_wavelet(pred_coeffs)
-
     
-    model.save('wavelet_unet_model_weights.keras')
-    model.save('wavelet_unet_model.h5')
+    model.save('wavelet_unet_model.keras')
+    # model.save('wavelet_unet_model.h5')
 
     loaded_model = tf.keras.models.load_model('wavelet_unet_model.keras')
-    loaded_model = tf.keras.models.load_model('wavelet_unet_model.h5')
+    # loaded_model = tf.keras.models.load_model('wavelet_unet_model.h5')
 
     
 if __name__ == '__main__':

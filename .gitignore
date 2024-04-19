@@ -179,3 +179,5 @@ __pycache__/
 */._.DS_Store
 */.DS_Store
 .DS_Store
+*.h5
+*.keras

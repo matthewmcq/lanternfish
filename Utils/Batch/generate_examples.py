@@ -70,7 +70,7 @@ def add_full_audio_to_perms(folder: str, PATH_DB: str) -> None:
 
 
 
-def split_audios(stem: str, duration: float=2.97) -> list:
+def split_audios(stem: str, sample_length: int) -> list:
     '''
     Splits the audio into chunks of duration seconds.
 
@@ -93,19 +93,16 @@ def split_audios(stem: str, duration: float=2.97) -> list:
     # Transpose to have time as first dimension
     stem_audio = stem_audio.T
 
-    # get total number of samples and number of chunks
+    # Get total number of samples and number of chunks
     n_samples = len(stem_audio)
-    # print(n_samples)
-    n_chunks = n_samples / (sr * duration)
-    n_chunks = int(n_chunks)
-    # print(f"n_chunks: {n_chunks}")
-    # print(n_chunks)
+    n_chunks = n_samples // sample_length
+
     chunks = []
 
     # Split into chunks
     for i in range(n_chunks):
-        start = int(i * sr * duration)
-        end = int((i + 1) * sr * duration)
+        start = i * sample_length
+        end = (i + 1) * sample_length
         stem_chunk = stem_audio[start:end]
         chunks.append(stem_chunk)
 
@@ -157,7 +154,7 @@ def song_has_stem(folder: str, stem_type: str, PATH_DB: str) -> bool:
         return True
 
 
-def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str, seconds: float =2.97) -> None:
+def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str, sample_length: int) -> None:
     '''
     Splits the audio in the folder into chunks of duration seconds.
 
@@ -213,7 +210,7 @@ def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str,
     true_path_from_db = PATH_DB + desired_stem_dir[0] + f"/{stem_type}_INSTR_SUM.wav"
     
     # split true stem into chunks
-    true_split = split_audios(true_path_from_db, seconds)
+    true_split = split_audios(true_path_from_db, sample_length)
     
     ## write vox stem
     write_audio(true_split, stem_type, TRUE_PATH)
@@ -232,13 +229,13 @@ def split_per_folder(folder: str, PATH_DB: str, PATH_Train: str, stem_type: str,
 
         
         # split perm stem into chunks
-        perm_split = split_audios(perm_path_from_db, seconds)
+        perm_split = split_audios(perm_path_from_db, sample_length)
 
         ## write perm stem
         write_audio(perm_split, f"{stem_type}_{i}", TRAIN_PATH)
 
 
-def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: float =2.97, add_mix_perm: bool=False) -> None:
+def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, sample_length: int, add_mix_perm: bool=False) -> None:
     '''
     Generates the training data for a given stem type.
 
@@ -261,7 +258,7 @@ def generate_data(PATH_DB: str, PATH_Train: str, stem_type: str, seconds: float 
                 print(f"Error adding full audio to perms for {folder}. {e}")
 
         # split the audio into chunks
-        split_per_folder(folder, PATH_DB, PATH_Train, stem_type, seconds)
+        split_per_folder(folder, PATH_DB, PATH_Train, stem_type, sample_length)
 
 
 def clean_training_data(PATH_Train: str, stem_type: str, folder: str=None) -> None:
