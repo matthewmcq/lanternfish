@@ -54,6 +54,8 @@ def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2
     
     return y_train, y_true, shape
 
+
+
 def main():
 
     model_config = cfg.cfg()

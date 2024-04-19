@@ -13,9 +13,10 @@ class InterpolationLayer(tf.keras.layers.Layer):
         dwt test shape: [batch_size = None, (1), 22 = (SR / 2) * time, ]
 
         basically if we use the logic from wave-u-net of expanding dims at axis 1, the input will then be:
-        [batch_size, 1, num_features, wavelet_depth]
+        [batch_size, 1, features (aka F), wavelet_depth]
         '''
-        features = input_shape[-1] # number of feature channels in input map
+        # features = input_shape[-1] # number of feature channels in input map
+        features = input_shape[-2] # number of feature channels in input map
         self.weights = self.add_weight(
             shape=[features],
             initializer='glorot_uniform', # TODO: possibly change this later?
@@ -51,6 +52,13 @@ class InterpolationLayer(tf.keras.layers.Layer):
 
     def call(self, input):
         conv_output = self.conv(input)
+
+        # Wave U Net:
+        # [batch_size, 1, width, F] -> [width (time), batch_size, 1, F]
+
+        # DWT:
+        # [batch_size, 1, F, wavelet_depth] -> [F, batch_size, 1, wavelet_depth] ?
+        # try this first, since it's the most analogous - feature channels incorporate time, and since before we 
 
         # Transpose the conv output and the original input to have shape [width, batch_size, features, height]
         # in order to concatenate along the width axis
