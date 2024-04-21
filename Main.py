@@ -56,6 +56,7 @@ def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2
 
 def main():
 
+    # model_config = cfg.cfg()
     model_config = cfg.cfg()
 
     ## Set the parameters -- might want to move to Config.py later
@@ -81,7 +82,17 @@ def main():
     # print(y_true)
         
     ## define the model
-    model = Models.wavelet_unet.WaveletUNet(model_config)
+    model = Models.wavelet_unet.WaveletUNet(
+        num_coeffs=model_config['num_coeffs'],
+        wavelet_depth=model_config['wavelet_depth'],
+        batch_size=model_config['batch_size'],
+        channels=model_config['channels'],
+        num_layers=model_config['num_layers'],
+        num_init_filters=model_config['num_init_filters'],
+        filter_size=model_config['filter_size'],
+        l1_reg=model_config['l1_reg'],
+        l2_reg=model_config['l2_reg']
+        )
 
     # define a dummy input to build the model
     model(tf.random.normal(shape=(batch_size, model_config['num_coeffs'], WAVELET_DEPTH+1)))
@@ -92,22 +103,28 @@ def main():
     ## check the loss function for all zeros
     zero_train = tf.zeros_like(y_train)
 
+
+    wavelet_loss = WaveletLoss(
+        wavelet_level=model_config['wavelet_depth'],
+        lambda_vec=model_config['lambda_vec'],
+        lambda_11=model_config['lambda_11'],
+        lambda_12=model_config['lambda_12'],
+    )
+
     ## check default loss:
-    loss = WaveletLoss(model, wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss',   l1_reg=0.0, l2_reg=0.0)
-    print("Default Loss without regularization:", loss(y_true, y_train))
+    loss = WaveletLoss( wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss')
+    print("Default Loss with regularization:", loss(y_true, y_train))
     print("Default Loss (All zeros):", loss(y_true, zero_train))
 
-    loss = WaveletLoss(model, wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss',   l1_reg=5e-8, l2_reg=5e-9)
-    print("Default loss with regularization:", loss(y_true, y_train))
-    print("Default Loss (All zeros) with regularization:", loss(y_true, zero_train))
+
     ## train the model
-    model = train(model, y_train, y_true, epochs, batch_size)
+    model = train(model, wavelet_loss, y_train, y_true, epochs, batch_size)
 
     
-    model.save('wavelet_unet_model.keras')
+    model.save('wavelet_unet_model_nif30.keras')
     # model.save('wavelet_unet_model.h5')
 
-    loaded_model = tf.keras.models.load_model('wavelet_unet_model.keras')
+    loaded_model = tf.keras.models.load_model('wavelet_unet_model_nif30.keras')
     # loaded_model = tf.keras.models.load_model('wavelet_unet_model.h5')
 
     
