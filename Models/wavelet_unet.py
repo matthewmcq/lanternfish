@@ -109,17 +109,59 @@ import sys
 
 class WaveletUNet(tf.keras.Model):
 
-    def __init__(self, model_config):
-        super().__init__()
-        self.num_coeffs = model_config['num_coeffs']
-        self.wavelet_depth = model_config['wavelet_depth'] + 1
-        self.batch_size = model_config['batch_size']
-        self.channels = model_config['channels']
-        self.num_layers = model_config['num_layers']
-        self.num_init_filters = model_config['num_init_filters']
-        self.filter_size = model_config['filter_size']
+    def __init__(self, num_coeffs, wavelet_depth, batch_size, channels, num_layers, num_init_filters, filter_size, l1_reg, l2_reg, **kwargs):
+        super().__init__(**kwargs)
+        self.num_coeffs = num_coeffs
+        self.wavelet_depth = wavelet_depth + 1
+        self.batch_size = batch_size
+        self.channels = channels
+        self.num_layers = num_layers
+        self.num_init_filters = num_init_filters
+        self.filter_size = filter_size
+        self.l1_reg = l1_reg
+        self.l2_reg = l2_reg
 
         self.input_shape = (self.batch_size, self.num_coeffs, self.wavelet_depth)
+
+    def get_config(self):
+        return {
+            'num_coeffs': self.num_coeffs,
+            'wavelet_depth': self.wavelet_depth - 1,  # Subtract 1 to match the constructor argument
+            'batch_size': self.batch_size,
+            'channels': self.channels,
+            'num_layers': self.num_layers,
+            'num_init_filters': self.num_init_filters,
+            'filter_size': self.filter_size,
+            'l1_reg': self.l1_reg,
+            'l2_reg': self.l2_reg
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        # Extract the necessary arguments from the config dictionary
+        num_coeffs = config.pop('num_coeffs')
+        wavelet_depth = config.pop('wavelet_depth')
+        batch_size = config.pop('batch_size')
+        channels = config.pop('channels')
+        num_layers = config.pop('num_layers')
+        num_init_filters = config.pop('num_init_filters')
+        filter_size = config.pop('filter_size')
+        l1_reg = config.pop('l1_reg')
+        l2_reg = config.pop('l2_reg')
+
+        # Create an instance of WaveletUNet with the extracted arguments
+        return cls(
+            num_coeffs=num_coeffs,
+            wavelet_depth=wavelet_depth,
+            batch_size=batch_size,
+            channels=channels,
+            num_layers=num_layers,
+            num_init_filters=num_init_filters,
+            filter_size=filter_size,
+            l1_reg=l1_reg,
+            l2_reg=l2_reg,
+            **config  # Pass any remaining arguments to the constructor
+        )
 
     def build(self, input_shape):
         # Create downsampling blocks
@@ -127,7 +169,7 @@ class WaveletUNet(tf.keras.Model):
         for i in range(self.num_layers):
             block_name = f'ds{i+1}'
             num_filters = self.num_init_filters + (self.num_init_filters * i)
-            self.downsampling_blocks[block_name] = DownsamplingLayer(num_filters, self.filter_size, name=block_name)
+            self.downsampling_blocks[block_name] = DownsamplingLayer(num_filters, self.filter_size, name=block_name, l1_reg=self.l1_reg, l2_reg=self.l2_reg)
 
         # Create batch normalization layers for downsampling blocks
         self.DS_batch_norm = {}
@@ -144,7 +186,7 @@ class WaveletUNet(tf.keras.Model):
             block_name = f'us{i+1}'
             num_filters = self.num_init_filters + (self.num_init_filters * (self.num_layers - i - 1))
             out_channels = num_filters // 2
-            self.upsampling_blocks[block_name] = UpsamplingLayer(num_filters, self.filter_size, out_channels, name=block_name)
+            self.upsampling_blocks[block_name] = UpsamplingLayer(num_filters, self.filter_size, out_channels, name=block_name, l1_reg=self.l1_reg, l2_reg=self.l2_reg)
         
         # Create batch normalization layers for upsampling blocks
         self.US_batch_norm = {}
@@ -245,14 +287,13 @@ class WaveletUNet(tf.keras.Model):
 
         return output
     
-
-### TODO: Figure out how to put these in Layers.py
 class DownsamplingLayer(tf.keras.layers.Layer):
-
-    def __init__(self, num_filters, filter_size, **kwargs):
+    def __init__(self, num_filters, filter_size, l1_reg=0.0, l2_reg=0.0, **kwargs):
         super().__init__(**kwargs)
         self.num_filters = num_filters
         self.filter_size = filter_size
+        self.l1_reg = l1_reg
+        self.l2_reg = l2_reg
 
     def build(self, input_shape):
         self.conv = tf.keras.layers.Conv1D(
@@ -261,6 +302,8 @@ class DownsamplingLayer(tf.keras.layers.Layer):
             activation='leaky_relu',
             padding='same',
             strides=1,
+            kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.l1_reg, l2=self.l2_reg),
+            activity_regularizer=tf.keras.regularizers.l1_l2(l1=self.l1_reg, l2=self.l2_reg),
             name='downsampling_conv'
         )
         super().build(input_shape)
@@ -269,14 +312,25 @@ class DownsamplingLayer(tf.keras.layers.Layer):
         x = self.conv(inputs)
         return x
 
-class UpsamplingLayer(tf.keras.layers.Layer): ## TODO: Implement Interpolation Layer
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            'num_filters': self.num_filters,
+            'filter_size': self.filter_size,
+            'l1_reg': self.l1_reg,
+            'l2_reg': self.l2_reg
+        })
+        return config
 
-    def __init__(self, num_filters, filter_size, out_channels, strides=2, **kwargs):
+class UpsamplingLayer(tf.keras.layers.Layer):
+    def __init__(self, num_filters, filter_size, out_channels, strides=2, l1_reg=0.0, l2_reg=0.0, **kwargs):
         super().__init__(**kwargs)
         self.num_filters = num_filters
         self.filter_size = filter_size
         self.out_channels = out_channels
         self.strides = strides
+        self.l1_reg = l1_reg
+        self.l2_reg = l2_reg
 
     def build(self, input_shape):
         self.conv_transpose = tf.keras.layers.Conv1DTranspose(
@@ -285,6 +339,8 @@ class UpsamplingLayer(tf.keras.layers.Layer): ## TODO: Implement Interpolation L
             strides=self.strides,
             activation='leaky_relu',
             padding='same',
+            kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.l1_reg, l2=self.l2_reg),
+            activity_regularizer=tf.keras.regularizers.l1_l2(l1=self.l1_reg, l2=self.l2_reg),
             name='upsampling_conv_transpose'
         )
         self.conv = tf.keras.layers.Conv1D(
@@ -292,6 +348,8 @@ class UpsamplingLayer(tf.keras.layers.Layer): ## TODO: Implement Interpolation L
             1,
             activation='leaky_relu',
             padding='same',
+            kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.l1_reg, l2=self.l2_reg),
+            activity_regularizer=tf.keras.regularizers.l1_l2(l1=self.l1_reg, l2=self.l2_reg),
             name='upsampling_conv'
         )
         super().build(input_shape)
@@ -300,3 +358,15 @@ class UpsamplingLayer(tf.keras.layers.Layer): ## TODO: Implement Interpolation L
         x = self.conv_transpose(inputs)
         x = self.conv(x)
         return x
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            'num_filters': self.num_filters,
+            'filter_size': self.filter_size,
+            'out_channels': self.out_channels,
+            'strides': self.strides,
+            'l1_reg': self.l1_reg,
+            'l2_reg': self.l2_reg
+        })
+        return config
