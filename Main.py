@@ -5,6 +5,10 @@ import tensorflow as tf
 import Models.wavelet_unet
 import Config as cfg
 from Train import train, WaveletLoss
+import pywt
+import soundfile as sf
+import numpy as np
+from Utils.Wavelets import inverseWaveletReshape
 
 ### DO NOT CHANGE ###
 MEDLEY2_PATH = 'Datasets/MedleyDB/V2/'
@@ -14,7 +18,7 @@ TRAIN_PATH = 'Datasets/TrainingData/'
 ## Set current stem type to process. Options are: 'vocals', 'drums', 'bass', 'midrange'
 CURR_STEM_TYPE = 'vocals'
 
-
+SR = 44100
 
 def preprocess_medleydb(stem_type: str, clean: bool =False, sample_length=65536) -> None:
     '''
@@ -54,8 +58,6 @@ def batch_training_data(level: int = 12, batch_size: int = 8, max_songs: int = 2
     
     return y_train, y_true, shape
 
-
-
 def main():
 
     # model_config = cfg.cfg()
@@ -80,37 +82,40 @@ def main():
 
     ## test that generate_pairs() works
     y_train, y_true, shape = batch_training_data(*BATCH_PARAMS)
+    print(f"shape at beginning of main: {shape}")
+    # print(shape.type)
+    # print([s.type for s in shape])
 
     # (num_samples, num_coeffs, wavelet_depth+1) tf.Tensors
     # (3, num_coeffs, wavelet_depth+1)
 
     print(f"y_train[0].shape: {y_train[0].shape}")
 
-    Utils.Plot.visualize_wavelet(y_train[0])
+    # Utils.Plot.visualize_wavelet(y_train[0])
 
-    exit()
+    # exit()
     
     # print(y_train)
     # print(y_true)
         
-    ## define the model
-    model = Models.wavelet_unet.WaveletUNet(
-        num_coeffs=model_config['num_coeffs'],
-        wavelet_depth=model_config['wavelet_depth'],
-        batch_size=model_config['batch_size'],
-        channels=model_config['channels'],
-        num_layers=model_config['num_layers'],
-        num_init_filters=model_config['num_init_filters'],
-        filter_size=model_config['filter_size'],
-        l1_reg=model_config['l1_reg'],
-        l2_reg=model_config['l2_reg']
-        )
+    # ## define the model
+    # model = Models.wavelet_unet.WaveletUNet(
+    #     num_coeffs=model_config['num_coeffs'],
+    #     wavelet_depth=model_config['wavelet_depth'],
+    #     batch_size=model_config['batch_size'],
+    #     channels=model_config['channels'],
+    #     num_layers=model_config['num_layers'],
+    #     num_init_filters=model_config['num_init_filters'],
+    #     filter_size=model_config['filter_size'],
+    #     l1_reg=model_config['l1_reg'],
+    #     l2_reg=model_config['l2_reg']
+    #     )
 
-    # define a dummy input to build the model
-    model(tf.random.normal(shape=(batch_size, model_config['num_coeffs'], WAVELET_DEPTH+1)))
+    # # define a dummy input to build the model
+    # model(tf.random.normal(shape=(batch_size, model_config['num_coeffs'], WAVELET_DEPTH+1)))
 
-    # print the model summary
-    model.summary()
+    # # print the model summary
+    # model.summary()
 
     ## check the loss function for all zeros
     zero_train = tf.zeros_like(y_train)
@@ -123,21 +128,64 @@ def main():
         lambda_12=model_config['lambda_12'],
     )
 
-    ## check default loss:
+    # ## check default loss:
     loss = WaveletLoss( wavelet_level=4, lambda_vec=[40, 2.5, 0.3, 0.2], lambda_11=1, lambda_12=0.25, name='wavelet_loss')
-    print("Default Loss with regularization:", loss(y_true, y_train))
-    print("Default Loss (All zeros):", loss(y_true, zero_train))
+    # print("Default Loss with regularization:", loss(y_true, y_train))
+    # print("Default Loss (All zeros):", loss(y_true, zero_train))
 
 
     ## train the model
-    model = train(model, wavelet_loss, y_train, y_true, epochs, batch_size)
+    # model = train(model, wavelet_loss, y_train, y_true, epochs, batch_size)
 
-    
-    model.save('wavelet_unet_model_nif30.keras')
-    # model.save('wavelet_unet_model.h5')
+    # # use nif30 (?)
+    # model.save('wavelet_unet_model_nif30.keras')
 
-    loaded_model = tf.keras.models.load_model('wavelet_unet_model_nif30.keras')
+    loaded_model = tf.keras.models.load_model('wavelet_unet_model_nif27_filter11.keras')
+    loaded_model(tf.random.normal(shape=(batch_size, model_config['num_coeffs'], WAVELET_DEPTH+1)))
     # loaded_model = tf.keras.models.load_model('wavelet_unet_model.h5')
+
+    # loaded_model.summary()
+
+    # print(f"y_train[0].shape: {y_train[0].shape}")
+
+    # predict_train_0 = loaded_model.predict(tf.expand_dims(y_train[0], axis=0))
+
+    # print(f"predict_train_0: {predict_train_0}")
+    # print(f"predict_train_0.shape: {predict_train_0.shape}")
+
+    # print(f"y_true[0]: {y_true[0]}")
+    # print(f"y_true[0].shape: {y_true[0].shape}")
+
+    # predict_train_0 = inverseWaveletReshape(predict_train_0, shape, model_config['wavelet_depth'])
+
+    # predict_train_0 = list(predict_train_0)
+    # # print(f"predict_train_0.shape: {predict_train_0}")
+    # # print(f"predict_train_0: {predict_train_0}")
+    # output = pywt.waverec(predict_train_0, 'haar')
+    # print(f"output: {output}")
+    # print(f"output.shape: {output.shape}")
+    # sf.write('test.wav', output, SR)
+    # sf.write('true.wav', y_true[0], SR)
+
+    for i in range(10):
+        predict_train_0 = loaded_model.predict(tf.expand_dims(y_train[i], axis=0))[0]
+        # predict_true_0 = tf.expand_dims(y_true[i], axis=0).numpy()
+        predict_true_0 = y_true[i]
+        print(f"y_true_i.shape: {y_true[i].shape}")
+        print(f"y_train_i.shape: {predict_train_0.shape}")
+        # print(f"predict_train_0.shape: {predict_train_0.shape}")
+        predict_true_0 = inverseWaveletReshape(predict_train_0, shape, model_config['wavelet_depth'])
+        print(f"predict_true_0: {predict_true_0}")
+        print(f"y_true_i: { tf.expand_dims(y_true[i], axis=0).numpy()}")
+        print([c.shape for c in predict_true_0])
+        # predict_true_0 = list(predict_true_0)
+        # print(f"predict_train_0.shape no IWTReshape: {(predict_train_0)}")
+        # output = pywt.waverec(predict_true_0, 'haar')
+        output = pywt.upcoef('a', predict_true_0[0], 'haar', level=model_config['wavelet_depth'])
+        print(f"output in loop: {output}")
+        print(f"output.shape in loop: {output.shape}")
+        sf.write(f'test_upcoef{i}.wav', output, SR)
+        # sf.write(f'true{i}.wav', y_true[i], SR//2)
 
     
 if __name__ == '__main__':

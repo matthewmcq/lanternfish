@@ -109,7 +109,7 @@ import sys
 
 class WaveletUNet(tf.keras.Model):
 
-    def __init__(self, num_coeffs, wavelet_depth, batch_size, channels, num_layers, num_init_filters, filter_size, l1_reg, l2_reg, **kwargs):
+    def __init__(self, num_coeffs, wavelet_depth, batch_size, channels, num_layers, num_init_filters, filter_size, merge_filter_size, l1_reg, l2_reg, **kwargs):
         super().__init__(**kwargs)
         self.num_coeffs = num_coeffs
         self.wavelet_depth = wavelet_depth + 1
@@ -118,6 +118,7 @@ class WaveletUNet(tf.keras.Model):
         self.num_layers = num_layers
         self.num_init_filters = num_init_filters
         self.filter_size = filter_size
+        self.merge_filter_size = merge_filter_size
         self.l1_reg = l1_reg
         self.l2_reg = l2_reg
 
@@ -132,6 +133,7 @@ class WaveletUNet(tf.keras.Model):
             'num_layers': self.num_layers,
             'num_init_filters': self.num_init_filters,
             'filter_size': self.filter_size,
+            'merge_filter_size': self.merge_filter_size,
             'l1_reg': self.l1_reg,
             'l2_reg': self.l2_reg
         }

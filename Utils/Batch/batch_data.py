@@ -96,7 +96,8 @@ def make_test_set(train_dict: dict, true_dict: dict, stem_type: str, path_to_son
         
         if np.all(train_tensor[0:] == 0) or np.all(true_tensor[0:] == 0) or np.all(train_tensor[1:] == 0) or np.all(true_tensor[1:] == 0): 
             continue  # skip this sample
-
+        print(f"key: {key}")
+        print(f"true_key: {true_key}")
         # add to the list
         y_train.append(train_tensor)
         y_true.append(true_tensor)
@@ -137,6 +138,8 @@ def batch_wavelets(path_to_training: str, stem_type: str, level: int =12, batch_
         path_to_song = path_to_training + stem_type + '/' + song 
         if path_to_song[-1] != '/':
             path_to_song += '/'
+        
+        print(f"Path to song: {path_to_song}")
 
         ## check if the song is a directory
         if not os.path.isdir(path_to_song):

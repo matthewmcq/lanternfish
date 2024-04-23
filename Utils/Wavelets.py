@@ -47,6 +47,7 @@ def getWaveletTransform(data: dict, song: str, level: int=12) -> dict:
 
     # Perform wavelet decomposition
     coeffs_left = pywt.wavedec(data[song].waveform[:, 0], 'haar', level=level, mode='reflect')
+    # print(f"coeffs_left: {coeffs_left}")
 
     
     # Find the maximum length among all coefficients
@@ -71,6 +72,8 @@ def getWaveletTransform(data: dict, song: str, level: int=12) -> dict:
     data[song].tensor_coeffs = tensor_coeffs
 
     return data
+
+import numpy as np
 
 def makeWaveDict(folder_name: str, indices: list) -> dict:
     '''
@@ -107,3 +110,54 @@ def makeWaveDict(folder_name: str, indices: list) -> dict:
         # Create a WaveData object
         data[filename] = WaveData(filename, waveform, None)
     return data
+
+def inverseWaveletReshape(tensor_coeffs, shape, wavelet_depth):
+    """
+    Reverse the wavelet transform and downscale the tensor coefficients to match the original shape.
+
+    Args:
+        tensor_coeffs (tf.Tensor): The tensor of wavelet coefficients, with shape (max_features, wavelet_depth + 1).
+        shape (tuple): The original shape of the waveform.
+        wavelet_depth (int): The depth of the wavelet decomposition.
+
+    Returns:
+        list: A list of tuples representing the downscaled wavelet coefficients.
+    """
+    # Convert the tensor to a NumPy array
+    # coeffs = tensor_coeffs.numpy()
+    coeffs = tensor_coeffs
+
+    # Create a list to store the downscaled coefficients
+    downscaled_coeffs = []
+
+    # Iterate over the wavelet levels
+    for level in range(wavelet_depth + 1):
+        # Get the coefficients for the current level
+        level_coeffs = coeffs[:, level]
+        print(f"level_coeffs: {level_coeffs.shape}")
+        # print(f"level_coeffs: {level_coeffs.shape}")
+        # interval = shape[level][0] // level_coeffs.shape[0]
+        # replace = level_coeffs[::interval, :]
+
+        # print(f"replace: {replace}")
+        # print(f"replace.shape: {replace.shape}")
+        
+
+        # Reshape the coefficients to match the original shape
+        # reshaped_coeffs = level_coeffs.reshape(shape[level])
+        dsize = (shape[level][0], 1)
+        print(f"dsize: {dsize}")
+        reshaped_coeffs = cv2.resize(level_coeffs.reshape(1, -1), dsize=dsize, interpolation=cv2.INTER_AREA).flatten()
+        print(f"reshaped_coeffs.shape: {reshaped_coeffs.shape}")
+        print(f"reshaped_coeffs: {reshaped_coeffs}")
+
+        # Collapse the noisy lower LOD detail and approximation coefficients
+        # collapsed_coeffs = np.mean(reshaped_coeffs, axis=1)
+        # collapsed_coeffs = np.median(reshaped_coeffs, axis=1)
+
+        # Append the collapsed coefficients to the list
+        downscaled_coeffs.append(reshaped_coeffs)
+
+    print(f"downscaled_coeffs: {downscaled_coeffs}")
+    # downscaled_coeffs = np.array(downscaled_coeffs).flatten()
+    return downscaled_coeffs
