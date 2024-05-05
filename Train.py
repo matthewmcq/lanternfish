@@ -1,26 +1,27 @@
 import tensorflow as tf
 import numpy as np
 
-def train(model, model_config, loss, train_dataset, val_dataset):
+def train(model, model_config, loss, train, val):
     es = tf.keras.callbacks.EarlyStopping(
         monitor='val_loss',
-        patience=5,
+        patience=10,
         restore_best_weights=True,
-        start_from_epoch=10
+        start_from_epoch=0
     )
 
     
     optimizer = tf.keras.optimizers.Adam(learning_rate=model_config['learning_rate'])
-    metrics = [tf.keras.metrics.RootMeanSquaredError(), tf.keras.metrics.MeanSquaredError]
+    metrics = [tf.keras.metrics.RootMeanSquaredError(), tf.keras.metrics.MeanSquaredError()]
     # Compile the model
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     # Train the model
     model.fit(
-        train_dataset,
+        train,
         epochs=model_config['epochs'],
-        validation_data=val_dataset,
+        validation_data=val,
         callbacks=[es]
+        
     )
 
     return model
@@ -39,18 +40,18 @@ class WaveletLoss(tf.keras.losses.Loss):
     # @tf.function
     def call(self, y_true, y_pred):
         # First index are approximation (midband) coefficients, second index are detail coefficients
-        loss = self.lambda_11 * tf.keras.losses.mean_squared_error(y_true[:, :, 0, :], y_pred[:, :, 0, :])
-        loss += self.lambda_12 * tf.keras.losses.mean_squared_error(y_true[:, :, 1, :], y_pred[:, :, 1, :])
-        loss *= self.lambda_vec[0]
+        # loss = self.lambda_11 * tf.keras.losses.mean_squared_error(y_true[:, :, 0, :], y_pred[:, :, 0, :])
+        # loss += self.lambda_12 * tf.keras.losses.mean_squared_error(y_true[:, :, 1, :], y_pred[:, :, 1, :])
+        # loss *= self.lambda_vec[0]
 
-        # For levels 2 through second to last, take MAE of detail coefficients times lambda
-        for i in range(2, self.wavelet_level):
-            loss += self.lambda_vec[i-1] * tf.keras.losses.mean_squared_error(y_true[:, :, i, :], y_pred[:, :, i, :])
+        # # For levels 2 through second to last, take MAE of detail coefficients times lambda
+        # for i in range(2, self.wavelet_level):
+        #     loss += self.lambda_vec[i-1] * tf.keras.losses.mean_squared_error(y_true[:, :, i, :], y_pred[:, :, i, :])
 
-        # For the last level, take MSE of detail coefficients times lambda
-        loss += self.lambda_vec[-1] * tf.keras.losses.mean_squared_error(y_true[:, :, -1, :], y_pred[:, :, -1, :])
+        # # For the last level, take MSE of detail coefficients times lambda
+        # loss += self.lambda_vec[-1] * tf.keras.losses.mean_squared_error(y_true[:, :, -1, :], y_pred[:, :, -1, :])
 
-        
+        loss = tf.math.reduce_mean(tf.math.square((y_true[:, :, 0] - y_pred[:, :, 0])))        
 
         return loss
     
