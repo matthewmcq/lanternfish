@@ -104,7 +104,7 @@ def getWaveletTransform(data: dict, song: str, level: int=12) -> dict:
     # print(f"Left channel waveform: {data[song].waveform[:, 0]}")
 
     # Perform wavelet decomposition
-    coeffs_left = pywt.wavedec(data[song].waveform[:, 0], 'haar', level=level, mode='symmetric')
+    coeffs_left = pywt.wavedec(librosa.resample(data[song].waveform[:, 0], orig_sr=SR, target_sr=SR//2), 'haar', level=level, mode='symmetric')
 
     
     # Find the maximum length among all coefficients
