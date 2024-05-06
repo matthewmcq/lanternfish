@@ -181,3 +181,6 @@ __pycache__/
 .DS_Store
 *.h5
 *.keras
+
+#Extraneous data
+Evaluate/TestData/*.wav
