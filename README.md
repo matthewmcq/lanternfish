@@ -51,3 +51,5 @@ There is so much more that goes into a large-scale project like this, and althou
 
 Also, by reading a lot of papers and combing through the associated GitHubs, we tried to make an effort to design our codebase in a way that mirrored theirs, which paid dividends by making the layouts super clear and allowed for flexibility when changing hyperparameters and tuning the model. 
 
+[Google Drive link to models and CoLab Backend](https://drive.google.com/drive/u/0/folders/1M_irkD7vvnZdminW1Haxmhs5-hbL09YB)
+
