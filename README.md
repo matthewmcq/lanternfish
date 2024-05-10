@@ -1,6 +1,6 @@
-### Title: Lanternfish - Audio Source Separation Based on the Discrete Wavelet Transform
+# Title: Lanternfish - Audio Source Separation Based on the Discrete Wavelet Transform
 
-# Matthew McQuistion, Rayhan Meghji, Scott Petersen
+### Matthew McQuistion, Rayhan Meghji, Scott Petersen
 
 ## Introduction: What problem are you trying to solve and why?
 
@@ -23,25 +23,25 @@ We also used l1 and l2 regularization on the kernel and activity/output of each 
 
 ## Reflection:
 
-# How do you feel your project ultimately turned out? How did you do relative to your base/target/stretch goals?
+### How do you feel your project ultimately turned out? How did you do relative to your base/target/stretch goals?
 
 We feel that our project turned out amazing. There is virtually no aliasing and it does a great job of splitting the stems with exceptionally high fidelity. That said, it came together at 2am on May 10th, which was definitely a little anxiety-inducing. We accomplished all of our base and target goals, but unfortunately ran out of time to accomplish our stretch goal.
 
-# Did your model work out the way you expected it to?
+### Did your model work out the way you expected it to?
 
 Yes. It works very well and sounds similar to the outputs of similar models.
 
-# How did your approach change over time? What kind of pivots did you make, if any? Would you have done differently if you could do your project over again?
+### How did your approach change over time? What kind of pivots did you make, if any? Would you have done differently if you could do your project over again?
 
 For about a month our outputs were horrid and frankly disheartening despite the fact that loss was going down to very small amounts. Despite numerous changes to the architecture, the output remained suspiciously poor. However, when we ran the postprocessing directly on the trained model after only like 10 epochs (i.e. not loading it, instead doing it directly after model.fit) the output was clear as day. This really made us wonder if other iterations of our model worked…
 
 At first, we tried to learn directly on the wavelet coefficients instead of learning on the actual audio. The initial drawback was that this required a lot more post processing and our interpolation scheme did not work super well with it. As a result, the model was actually really good at separating vocals from the rest of the mix, but the heavy aliasing meant that the output was not high quality enough to actually be useful. We decided to convert the split coefficients directly into the sub-band audios and train on those, but although there was less aliasing, the model was not as good at actually learning to separate the audio and there was still quite a bit of aliasing. Furthermore, when the model was tame enough to run locally, we used tf.image_resize with sinc interpolation, which worked really well, however when training on more data, we had to switch to Google CoLab, in which XLA did not support this operation. We spent about a week trying to manually implement this feature using convolution, but it didn't really work and we ended up going with a learnable interpolation layer from the Wave-U-Net paper. This, in part, also led us to move towards learning on audio, as that method was far better at learning continuous dependencies than the discrete coefficients.
 
-# What do you think you can further improve on if you had more time?
+### What do you think you can further improve on if you had more time?
 
 There are a lot of very confusing small issues that have large impacts on model performance. If we had more time, we would like to try with another dataset and likely redo the data pipeline, as it is very bloated given the pivots we have had to make. Also, as these models take a long time and a lot of compute credits to train, it would be great if we had funding or simply more weeks to try different models and iterate that way. Also, we think it would be interesting to train on separating all stems at the same time rather than sequentially to test if our hypothesis on sequential separation being preferable was in fact correct. Lastly, we had a really cool idea of stem-agnostic separation, which currently does not exist, but unfortunately we ran out of time to work on this. 
 
-# What are your biggest takeaways from this project/what did you learn?
+### What are your biggest takeaways from this project/what did you learn?
 
 Overall we learned a lot about digital signal processing and how different sample rates, interpolation schemes, and DSP techniques can affect audio quality. Designing a model around audio is difficult, because the small errors guaranteed in stochastic models are much more easily perceived by the human brain than formats like images or text. Managing incredibly fragile coefficients is difficult, and the size of each training example means that we really had to be clever about how we batched data and designed the pipeline to be as effective as possible. 
 
