@@ -23,15 +23,15 @@ We also used l1 and l2 regularization on the kernel and activity/output of each 
 
 ## Reflection:
 
-#How do you feel your project ultimately turned out? How did you do relative to your base/target/stretch goals?
+# How do you feel your project ultimately turned out? How did you do relative to your base/target/stretch goals?
 
 We feel that our project turned out amazing. There is virtually no aliasing and it does a great job of splitting the stems with exceptionally high fidelity. That said, it came together at 2am on May 10th, which was definitely a little anxiety-inducing. We accomplished all of our base and target goals, but unfortunately ran out of time to accomplish our stretch goal.
 
-#Did your model work out the way you expected it to?
+# Did your model work out the way you expected it to?
 
 Yes. It works very well and sounds similar to the outputs of similar models.
 
-#How did your approach change over time? What kind of pivots did you make, if any? Would you have done differently if you could do your project over again?
+# How did your approach change over time? What kind of pivots did you make, if any? Would you have done differently if you could do your project over again?
 
 For about a month our outputs were horrid and frankly disheartening despite the fact that loss was going down to very small amounts. Despite numerous changes to the architecture, the output remained suspiciously poor. However, when we ran the postprocessing directly on the trained model after only like 10 epochs (i.e. not loading it, instead doing it directly after model.fit) the output was clear as day. This really made us wonder if other iterations of our model worked…
 
