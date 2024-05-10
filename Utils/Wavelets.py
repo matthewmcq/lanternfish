@@ -104,7 +104,7 @@ def getWaveletTransform(data: dict, song: str, level: int=12) -> dict:
     # print(f"Left channel waveform: {data[song].waveform[:, 0]}")
 
     # Perform wavelet decomposition
-    coeffs_left = pywt.wavedec(librosa.resample(data[song].waveform[:, 0], orig_sr=SR, target_sr=SR//2), 'haar', level=level, mode='symmetric')
+    coeffs_left = pywt.wavedec(data[song].waveform[:, 0], 'haar', level=level, mode='symmetric')
 
     
     # Find the maximum length among all coefficients
@@ -167,7 +167,8 @@ def makeWaveDict(folder_name: str, indices: list) -> dict:
     return data
 
 
-def inverseWaveletReshape(tensor_coeffs, shape, wavelet_depth):
+
+def inverseWaveletReshape(tensor_coeffs, shape, wavelet_depth, flag=False):
     """
     Reverse the wavelet transform and downscale the tensor coefficients to match the original shape.
 
@@ -188,32 +189,18 @@ def inverseWaveletReshape(tensor_coeffs, shape, wavelet_depth):
 
     # Iterate over the wavelet levels
     for level in range(wavelet_depth + 1):
+        
         # Get the coefficients for the current level
-        level_coeffs = coeffs[:, level].numpy()
-        # print(f"level_coeffs: {level_coeffs.shape}")
-        # print(f"level_coeffs: {level_coeffs.shape}")
-        # interval = shape[level][0] // level_coeffs.shape[0]
-        # replace = level_coeffs[::interval, :]
-
-        # print(f"replace: {replace}")
-        # print(f"replace.shape: {replace.shape}")
+        level_coeffs = coeffs[:, level]
         
 
         # Reshape the coefficients to match the original shape
         # reshaped_coeffs = level_coeffs.reshape(shape[level])
         dsize = (shape[level][0], 1)
-        # print(f"dsize: {dsize}")
-        reshaped_coeffs = cv2.resize(level_coeffs.reshape(1, -1), dsize=dsize, interpolation=cv2.INTER_AREA).flatten()
-        # print(f"reshaped_coeffs.shape: {reshaped_coeffs.shape}")
-        # print(f"reshaped_coeffs: {reshaped_coeffs}")
-
-        # Collapse the noisy lower LOD detail and approximation coefficients
-        # collapsed_coeffs = np.mean(reshaped_coeffs, axis=1)
-        # collapsed_coeffs = np.median(reshaped_coeffs, axis=1)
+        reshaped_coeffs = cv2.resize(level_coeffs.reshape(1, -1), dsize=dsize, interpolation=cv2.INTER_LANCZOS4).flatten()
 
         # Append the collapsed coefficients to the list
         downscaled_coeffs.append(reshaped_coeffs)
-
-    # print(f"downscaled_coeffs: {downscaled_coeffs}")
+        
     # downscaled_coeffs = np.array(downscaled_coeffs).flatten()
     return downscaled_coeffs
