@@ -2,6 +2,8 @@
 
 ### Matthew McQuistion, Rayhan Meghji, Scott Petersen
 
+![image](https://github.com/user-attachments/assets/40fb4d87-da09-46dc-8868-917a7f0e061d)
+
 ## Introduction: 
 
 Although the use of Neural Networks for audio source separation is not new, most commercially-available models are poor--both in separation quality, aliasing, and number of identified sources (usually limited to 4 stems). We wanted to leverage the use of the Discrete Wavelet Transform (DWT) to mitigate some of the issues faced by other models, which typically rely on the Short-Time Fourier Transform, which is sensitive to changes in phase and requires computationally-intensive post-processing. 
